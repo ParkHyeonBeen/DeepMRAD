@@ -25,7 +25,6 @@ class Gaussian_Actor(nn.Module):
 
         self.apply(weight_init)
 
-
     def forward(self, state, deterministic=False):
         if self.encoder is None:
             z = state
@@ -99,11 +98,12 @@ class Squashed_Gaussian_Actor(nn.Module):
         if self.encoder is not None:
             assert self.encoder.feature_dim == state_dim
 
-        self.network = nn.ModuleList([nn.Linear(state_dim, hidden_dim[0]), nn.ReLU()])
+        self.network_inner = nn.ModuleList([nn.Linear(state_dim, hidden_dim[0]), nn.ReLU()])
         for i in range(len(hidden_dim) - 1):
-            self.network.append(nn.Linear(hidden_dim[i], hidden_dim[i + 1]))
-            self.network.append(nn.ReLU())
-        self.network.append(nn.Linear(hidden_dim[-1], action_dim * 2))
+            self.network_inner.append(nn.Linear(hidden_dim[i], hidden_dim[i + 1]))
+            self.network_inner.append(nn.ReLU())
+        self.network_outer = nn.Linear(hidden_dim[-1], action_dim * 2)
+        self.network = self.network_inner.append(self.network_outer)
 
         self.apply(weight_init)
 

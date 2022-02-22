@@ -3,7 +3,7 @@ import torch
 from Algorithm.SAC_v2 import SAC_v2
 from Algorithm.ImageRL.SAC import ImageSAC_v2
 
-from Trainer.Basic_trainer import Basic_trainer
+from Trainer import *
 from Common.Utils import set_seed, gym_env, dmc_env, dmc_image_env, dmcr_env
 
 def hyperparameters():
@@ -14,7 +14,7 @@ def hyperparameters():
     parser.add_argument('--discrete', default=True, type=bool, help='Always Continuous')
     parser.add_argument('--render', default=False, type=bool)
     parser.add_argument('--training-start', default=1000, type=int, help='First step to start training')
-    parser.add_argument('--max-step', default=10000001, type=int, help='Maximum training step')
+    parser.add_argument('--max-step', default=3000001, type=int, help='Maximum training step')
     parser.add_argument('--eval', default=True, type=bool, help='whether to perform evaluation')
     parser.add_argument('--eval-step', default=10000, type=int, help='Frequency in performance evaluation')
     parser.add_argument('--eval-episode', default=10, type=int, help='Number of episodes to perform evaluation')
@@ -56,8 +56,12 @@ def hyperparameters():
     parser.add_argument('--buffer', default=False, type=bool, help='when logged, save buffer')
     parser.add_argument('--buffer-freq', default=10000, type=int, help='buffer saving frequency')
 
-    # save
-    parser.add_argument('--path', default="X:/RMBRL/Results/", help='path for save')
+    # estimate a model dynamics
+    parser.add_argument('--develop-mode', default=True, type=bool, help="you should choose whether basic or model_base")
+    parser.add_argument('--net-type', default="DNN", help='DNN, BNN')
+    # save path
+    parser.add_argument('--path', default="X:/env_mbrl/Results/saved_net/", help='path for save')
+
 
     args = parser.parse_args()
 
@@ -108,7 +112,12 @@ def main(args):
     print("Max action:", max_action)
     print("Min action:", min_action)
 
-    trainer = Basic_trainer(env, test_env, algorithm, max_action, min_action, args)
+    if args.develop_mode is False:
+        trainer = Basic_trainer(
+            env, test_env, algorithm, max_action, min_action, args)
+    else:
+        trainer = Model_trainer(
+            env, test_env, algorithm, state_dim, action_dim, max_action, min_action, args)
     trainer.run()
 
 if __name__ == '__main__':

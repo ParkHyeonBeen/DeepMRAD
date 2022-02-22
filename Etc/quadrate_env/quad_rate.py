@@ -18,12 +18,12 @@ def hyperparameters():
     parser.add_argument('--pid-skip', default=5, type=int, help="time_step = frame skip*initial_time_step")
     parser.add_argument('--bound-range', default=5, type=int, help="limitation of position that quadrotor can go")
 
-    parser.add_argument('--goal-make', default=True, type=bool, help="If False, goal is origin")
+    parser.add_argument('--goal-make', default=False, type=bool, help="If False, goal is origin")
     parser.add_argument('--goal-shape', default='circle', help="circle, helix, custom")
     
-    parser.add_argument('--convert-relative', default=True, type=bool, help="convert position to relative position")
+    parser.add_argument('--convert-relative', default=False, type=bool, help="convert position to relative position")
 
-    parser.add_argument('--add-disturbance', default=True, type=bool, help="action = action + disturbance")
+    parser.add_argument('--add-disturbance', default=False, type=bool, help="action = action + disturbance")
     parser.add_argument('--form-disturbance', default='sinewave', help="sinewave, impact")
     parser.add_argument('--thrust-noise', default=[0.1, 1000], help="For thrust direction")
     parser.add_argument('--rate-noise', default=[0.0, 2000], help="For rpy direction")
@@ -79,21 +79,7 @@ class QuadRateEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         self.local_step += 1
 
         ob = self._get_obs()
-        put_path(ob)
-        
-        if args.convert_relative == True:
-            ob[0:3] = ob[0:3] - self.goal[:3]
-            pos = ob[0:3]
-            ang = quat2rpy(ob[3:7])
-            self.error_pos = linalg.norm(pos)
-            self.error_ang = linalg.norm(self.goal[3:] - ang)
-        else:
-            pos = ob[0:3]
-            ang = quat2rpy(ob[3:7])
-            self.error_pos = linalg.norm(self.goal[:3] - pos)
-            self.error_ang = linalg.norm(self.goal[3:] - ang)
-
-        ob = np.append(ob, [self.error_pos, self.error_ang])
+        ob = self._add_error(ob)
 
         reward, done, info = self._get_reward(ob, action)
     
@@ -108,6 +94,24 @@ class QuadRateEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         pos = self.sim.data.qpos * 1e-0
         vel = self.sim.data.qvel * 1e-0
         return np.concatenate([pos.flat, vel.flat])
+
+    def _add_error(self, ob):
+
+        if args.convert_relative == True:
+            ob[0:3] = ob[0:3] - self.goal[:3]
+            pos = ob[0:3]
+            ang = quat2rpy(ob[3:7])
+            self.error_pos = linalg.norm(pos)
+            self.error_ang = linalg.norm(self.goal[3:] - ang)
+        else:
+            pos = ob[0:3]
+            ang = quat2rpy(ob[3:7])
+            self.error_pos = linalg.norm(self.goal[:3] - pos)
+            self.error_ang = linalg.norm(self.goal[3:] - ang)
+
+        ob = np.append(ob, [self.error_pos, self.error_ang])
+
+        return ob
 
     def _get_reward(self, ob, act, bound_range=args.bound_range):
 
@@ -172,21 +176,7 @@ class QuadRateEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         qvel = self.init_qvel #+ self.np_random.uniform(size=self.model.nv, low=-0.05, high=0.05)
         self.set_state(qpos, qvel)
         ob = self._get_obs()
-
-        if args.convert_relative == True:
-            ob[0:3] = ob[0:3] - self.goal[:3]
-
-            pos = ob[0:3]
-            ang = quat2rpy(ob[3:7])
-            self.error_pos = linalg.norm(pos)
-            self.error_ang = linalg.norm(self.goal[3:] - ang)
-        else:
-            pos = ob[0:3]
-            ang = quat2rpy(ob[3:7])
-            self.error_pos = linalg.norm(self.goal[:3] - pos)
-            self.error_ang = linalg.norm(self.goal[3:] - ang)
-
-        ob = np.append(ob, [self.error_pos, self.error_ang])
+        ob = self._add_error(ob)
 
         return ob
 

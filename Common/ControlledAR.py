@@ -23,7 +23,7 @@ class ControlledAR():
         self.timestep = self.env_real.timestep
 
         self.frame_skip = args.frame_skip
-        self.pid_skip = args.pid_skip
+        self.inner_skip = args.inner_skip
 
     def state_converter(self, ob, dim=9):
 
@@ -128,7 +128,7 @@ class ControlledAR():
         error_x = np.array([error[0],
                             error[4],
                             error[6]],
-                            dtype="object").T
+                           dtype="object").T
         error_y = np.array([error[1],
                             error[3],
                             error[7]],
@@ -155,7 +155,7 @@ class ControlledAR():
 
     def make_nextstate_ref(self, state, action):
 
-        timestep = self.pid_skip * self.timestep
+        timestep = self.inner_skip * self.timestep
 
         pos = state[0:3]
         ang = state[3:6]

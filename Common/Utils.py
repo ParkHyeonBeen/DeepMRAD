@@ -13,9 +13,10 @@ import matplotlib.pyplot as plt
 _FLOAT_EPS = np.finfo(np.float64).eps
 _EPS4 = _FLOAT_EPS * 4.0
 
-data = np.empty([1, 9])
+data = None
 path_data = np.empty([1, 3])
 
+## related to control ##
 def quat2mat(quat):
     """ Convert Quaternion to Rotation matrix.  See rotation.py for notes """
     quat = np.asarray(quat, dtype=np.float64)
@@ -64,9 +65,40 @@ def denomalize(input, act_max, act_min):
     input = input @ denormal_mat + denormal_bias
     return input
 
+def add_noise(action, percent = 0.1):
+    for i in range(len(action)):
+        action[i] += action[i]*random.uniform(-percent, percent)
+    return action
+
+def add_disturbance(action, step, terminal_time, percent = 0.1):
+    for i in range(len(action)):
+        action[i] += action[i]*percent*math.sin((random.choice([2, 4, 8])*math.pi / terminal_time)*step)
+    return action
+
+## related to saved data ##
+
+def init_data():
+    global data
+    data = None
+
+def put_data(obs):
+    global data
+    if data is None:
+        data = obs
+    else:
+        data = np.vstack((data, obs))
+
+def put_path(obs):
+    global path_data
+    path_data = np.vstack((path_data, obs[:3]))
+
 def plot_data(obs, label=None):
     global data
-    data.append(obs)
+    print(data)
+    if data is None:
+        data = obs
+    else:
+        data = np.vstack((data, obs))
     if label is None:
         plt.plot(data)
     else:
@@ -88,23 +120,30 @@ def plot_path(obs, label=None):
     plt.pause(0.0001)
     plt.cla()
 
-def put_data(obs):
-    global data
-    data = np.vstack((data, obs))
-
-def put_path(obs):
-    global path_data
-    path_data = np.vstack((path_data, obs[:3]))
-
-def save_data(path, name):
+def save_data(path, fname):
     global data
     df = pd.DataFrame(data)
-    df.to_csv(path + name + ".csv")
+    df.to_csv(path + fname + ".csv")
 
 def save_path(path, name):
     global path_data
     df = pd.DataFrame(path_data)
     df.to_csv(path + name + ".csv")
+
+def sava_network(network, fname : str, root : str):
+    if "policy" in fname:
+        torch.save(network.state_dict(), root + "saved_net/policy/" + fname)
+    elif "model" in fname:
+        if "DNN" in fname:
+            torch.save(network.state_dict(), root + "saved_net/model/DNN/" + fname)
+        elif "BNN" in fname:
+            torch.save(network.state_dict(), root + "saved_net/model/BNN/" + fname)
+        else:
+            torch.save(network.state_dict(), root + "saved_net/model/Etc/" + fname)
+    else:
+        raise Exception(" check your file name ")
+
+## related to gym
 
 def set_seed(random_seed):
     if random_seed <= 0:

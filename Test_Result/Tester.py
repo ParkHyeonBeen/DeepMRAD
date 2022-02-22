@@ -6,14 +6,18 @@ from Trainer import *
 from Example import *
 from Common.Utils import set_seed, gym_env
 
-# policy_name = "policy_better"
-policy_name = "QR_randomI2O/policy_best"
+# policy_name = "QR_randomI2O/policy_best"
 
 def hyperparameters():
     parser = argparse.ArgumentParser(description='Soft Actor Critic (SAC) v2 example')
 
-    # develop mode
-    parser.add_argument('--develop-mode', default=True, type=bool, help="you should check initial random on-off")
+    # related to development
+    parser.add_argument('--develop-mode', default=True, type=bool, help="you should choose whether basic or model_based")
+    parser.add_argument('--inner-skip', default=1, type=int, help='frame skip in inner loop ')
+
+    parser.add_argument('--path', default="X:/env_mbrl/Results/saved_net/", help='path for save')
+    parser.add_argument('--modelnet-name', default="modelDNN_better", help='modelDNN_better, modelBNN_better')
+    parser.add_argument('--policynet-name', default="policy_best", help='best, better, current, total')
 
     # environment
     parser.add_argument('--algorithm', default='SAC_v2', type=str, help='you should choose same algorithm with loaded network')
@@ -39,25 +43,22 @@ def hyperparameters():
     parser.add_argument('--buffer', default=False, type=bool, help='when logged, save buffer')
     parser.add_argument('--buffer-freq', default=10000, type=int, help='buffer saving frequency')
 
-    # save
-    parser.add_argument('--path', default="X:/RMBRL/Results/", help='path for save')
-
     args = parser.parse_args()
 
     return args
 
-def main(args_test):
+def main(args_tester):
 
     args = None
 
-    if args_test.algorithm == 'SAC_v2':
+    if args_tester.algorithm == 'SAC_v2':
         from Example.run_SACv2 import hyperparameters
-    if args_test.algorithm == 'DDPG':
+    if args_tester.algorithm == 'DDPG':
         from Example.run_SACv2 import hyperparameters
 
     args = hyperparameters()
 
-    if args_test.cpu_only == True:
+    if args_tester.cpu_only == True:
         device = torch.device('cpu')
     else:
         device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -77,29 +78,30 @@ def main(args_test):
 
     algorithm = None
 
-    if args_test.algorithm == 'SAC_v2':
+    if args_tester.algorithm == 'SAC_v2':
         algorithm = SAC_v2(state_dim, action_dim, device, args)
 
-    elif args_test.algorithm == 'DDPG':
+    elif args_tester.algorithm == 'DDPG':
         algorithm = DDPG(state_dim, action_dim, device, args)
 
-    algorithm.actor.load_state_dict(torch.load(args.path + policy_name))
+    algorithm.actor.load_state_dict(torch.load(args_tester.path + "policy/" + args_tester.policynet_name))
 
     print("Training of", args.domain_type + '_' + args.env_name)
     print("Algorithm:", algorithm.name)
     print("State dim:", state_dim)
     print("Action dim:", action_dim)
-    print("Max action:", max_action)
-    print("Min action:", min_action)
+    print("Action range: {:.2f} ~ {:.2f}".format(min_action, max_action))
+    print("step size: {} (frame skip: {})".format(env.env.dt, env.env.frame_skip))
 
     trainer = None
-
-    if args_test.develop_mode is False:
-        trainer = Basic_trainer(env, test_env, algorithm, max_action, min_action, args, args_test)
+    if args_tester.develop_mode is False:
+        trainer = Basic_trainer(
+            env, test_env, algorithm, max_action, min_action, args, args_tester)
     else:
-        trainer = Car_trainer(env, test_env, algorithm, max_action, min_action, args, args_test)
+        trainer = Model_trainer(
+            env, test_env, algorithm, state_dim, action_dim, max_action, min_action, args, args_tester)
     trainer.test()
 
 if __name__ == '__main__':
-    args_test = hyperparameters()
-    main(args_test)
+    args_tester = hyperparameters()
+    main(args_tester)
