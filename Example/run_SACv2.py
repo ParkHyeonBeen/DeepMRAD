@@ -10,14 +10,14 @@ def hyperparameters():
     parser = argparse.ArgumentParser(description='Soft Actor Critic (SAC) v2 example')
     #environment
     parser.add_argument('--domain-type', default='gym', type=str, help='gym or dmc, dmc/image')
-    parser.add_argument('--env-name', default='QuadRate-v0', help='Pendulum-v0, MountainCarContinuous-v0')
-    parser.add_argument('--discrete', default=True, type=bool, help='Always Continuous')
+    parser.add_argument('--env-name', default='Thrower-v2', help='Pendulum-v0, MountainCarContinuous-v0')
+    parser.add_argument('--discrete', default=False, type=bool, help='Always Continuous')
     parser.add_argument('--render', default=False, type=bool)
     parser.add_argument('--training-start', default=1000, type=int, help='First step to start training')
-    parser.add_argument('--max-step', default=3000001, type=int, help='Maximum training step')
+    parser.add_argument('--max-step', default=2000001, type=int, help='Maximum training step')
     parser.add_argument('--eval', default=True, type=bool, help='whether to perform evaluation')
     parser.add_argument('--eval-step', default=10000, type=int, help='Frequency in performance evaluation')
-    parser.add_argument('--eval-episode', default=10, type=int, help='Number of episodes to perform evaluation')
+    parser.add_argument('--eval-episode', default=5, type=int, help='Number of episodes to perform evaluation')
     parser.add_argument('--random-seed', default=-1, type=int, help='Random seed setting')
     #sac
     parser.add_argument('--batch-size', default=256, type=int, help='Mini-batch size')
@@ -60,8 +60,7 @@ def hyperparameters():
     parser.add_argument('--develop-mode', default=True, type=bool, help="you should choose whether basic or model_base")
     parser.add_argument('--net-type', default="DNN", help='DNN, BNN')
     # save path
-    parser.add_argument('--path', default="X:/env_mbrl/Results/saved_net/", help='path for save')
-
+    parser.add_argument('--path', default="X:/env_mbrl/Results/", help='path for save')
 
     args = parser.parse_args()
 
@@ -97,20 +96,22 @@ def main(args):
         state_dim = env.observation_space.shape
 
     action_dim = env.action_space.shape[0]
-    max_action = env.action_space.high[0]
-    min_action = env.action_space.low[0]
+    max_action = env.action_space.high
+    min_action = env.action_space.low
 
     if args.domain_type in {'gym', 'dmc'}:
         algorithm = SAC_v2(state_dim, action_dim, device, args)
     elif args.domain_type in {'dmc/image', 'dmcr'}:
         algorithm = ImageSAC_v2(state_dim, action_dim, device, args)
 
+    # algorithm.actor.load_state_dict(torch.load('X:/env_mbrl/Results/saved_net/policy/policy_current'))
+
     print("Training of", args.domain_type + '_' + args.env_name)
     print("Algorithm:", algorithm.name)
     print("State dim:", state_dim)
     print("Action dim:", action_dim)
-    print("Max action:", max_action)
-    print("Min action:", min_action)
+    print("Action range: {:.2f} ~ {:.2f}".format(min(min_action), max(max_action)))
+    print("step size: {} (frame skip: {})".format(env.env.dt, env.env.frame_skip))
 
     if args.develop_mode is False:
         trainer = Basic_trainer(

@@ -58,7 +58,14 @@ def quat2rpy(quat):
     euler = np.array(euler)
     return euler
 
-def denomalize(input, act_max, act_min):
+def normalize(input, act_max, act_min):
+    normal_mat = np.zeros((len(input), len(input)))
+    np.fill_diagonal(normal_mat,  2 / (act_max - act_min))
+    normal_bias = (act_max + act_min) / 2
+    input = (input - normal_bias) @ normal_mat
+    return input
+
+def denormalize(input, act_max, act_min):
     denormal_mat = np.zeros((len(input), len(input)))
     np.fill_diagonal(denormal_mat, (act_max - act_min) / 2)
     denormal_bias = (act_max + act_min) / 2
@@ -87,6 +94,10 @@ def put_data(obs):
         data = obs
     else:
         data = np.vstack((data, obs))
+
+def mean_data():
+    global data
+    data = np.mean(data, axis=0)
 
 def put_path(obs):
     global path_data
@@ -120,15 +131,24 @@ def plot_path(obs, label=None):
     plt.pause(0.0001)
     plt.cla()
 
-def save_data(path, fname):
+def save_data(path, fname, numpy=False):
     global data
-    df = pd.DataFrame(data)
-    df.to_csv(path + fname + ".csv")
 
-def save_path(path, name):
+    if numpy is False:
+        df = pd.DataFrame(data)
+        df.to_csv(path + fname + ".csv")
+    else:
+        df = np.array(data)
+        np.save(path + fname + ".npy", df)
+
+def save_path(path, fname, numpy=False):
     global path_data
-    df = pd.DataFrame(path_data)
-    df.to_csv(path + name + ".csv")
+    if numpy is False:
+        df = pd.DataFrame(data)
+        df.to_csv(path + fname + ".csv")
+    else:
+        df = np.array(path_data)
+        np.save(path + fname + ".npy", df)
 
 def sava_network(network, fname : str, root : str):
     if "policy" in fname:

@@ -6,14 +6,12 @@ from Trainer import *
 from Example import *
 from Common.Utils import set_seed, gym_env
 
-# policy_name = "QR_randomI2O/policy_best"
-
 def hyperparameters():
-    parser = argparse.ArgumentParser(description='Soft Actor Critic (SAC) v2 example')
+    parser = argparse.ArgumentParser(description='Tester of algorithms')
 
     # related to development
-    parser.add_argument('--develop-mode', default=True, type=bool, help="you should choose whether basic or model_based")
-    parser.add_argument('--inner-skip', default=1, type=int, help='frame skip in inner loop ')
+    parser.add_argument('--develop-mode', default=False, type=bool, help="you should choose whether basic or model_based")
+    parser.add_argument('--frameskip_inner', default=1, type=int, help='frame skip in inner loop ')
 
     parser.add_argument('--path', default="X:/env_mbrl/Results/saved_net/", help='path for save')
     parser.add_argument('--modelnet-name', default="modelDNN_better", help='modelDNN_better, modelBNN_better')
@@ -22,26 +20,12 @@ def hyperparameters():
     # environment
     parser.add_argument('--algorithm', default='SAC_v2', type=str, help='you should choose same algorithm with loaded network')
     parser.add_argument('--domain-type', default='gym', type=str, help='gym or dmc, dmc/image')
-    parser.add_argument('--env-name', default='QuadRate-v0', help='Pendulum-v0, MountainCarContinuous-v0')
-    parser.add_argument('--discrete', default=True, type=bool, help='Always Continuous')
+    parser.add_argument('--env-name', default='Thrower-v2', help='Pendulum-v0, MountainCarContinuous-v0')
     parser.add_argument('--render', default=True, type=bool)
-    parser.add_argument('--training-start', default=1000, type=int, help='First step to start training')
-    parser.add_argument('--max-step', default=1000001, type=int, help='Maximum training step')
-    parser.add_argument('--eval', default=True, type=bool, help='whether to perform evaluation')
-    parser.add_argument('--eval-step', default=10000, type=int, help='Frequency in performance evaluation')
-    parser.add_argument('--eval-episode', default=1, type=int, help='Number of episodes to perform evaluation')
+    parser.add_argument('--test-episode', default=10, type=int, help='Number of episodes to perform evaluation')
     parser.add_argument('--random-seed', default=-1, type=int, help='Random seed setting')
 
     parser.add_argument('--cpu-only', default=False, type=bool, help='force to use cpu only')
-    parser.add_argument('--log', default=False, type=bool, help='use tensorboard summary writer to log, if false, cannot use the features below')
-    parser.add_argument('--tensorboard', default=True, type=bool, help='when logged, write in tensorboard')
-    parser.add_argument('--file', default=False, type=bool, help='when logged, write log')
-    parser.add_argument('--numpy', default=False, type=bool, help='when logged, save log in numpy')
-
-    parser.add_argument('--model', default=False, type=bool, help='when logged, save model')
-    parser.add_argument('--model-freq', default=10000, type=int, help='model saving frequency')
-    parser.add_argument('--buffer', default=False, type=bool, help='when logged, save buffer')
-    parser.add_argument('--buffer-freq', default=10000, type=int, help='buffer saving frequency')
 
     args = parser.parse_args()
 
@@ -73,8 +57,8 @@ def main(args_tester):
 
     state_dim = env.observation_space.shape[0]
     action_dim = env.action_space.shape[0]
-    max_action = env.action_space.high[0]
-    min_action = env.action_space.low[0]
+    max_action = env.action_space.high
+    min_action = env.action_space.low
 
     algorithm = None
 
@@ -90,8 +74,10 @@ def main(args_tester):
     print("Algorithm:", algorithm.name)
     print("State dim:", state_dim)
     print("Action dim:", action_dim)
-    print("Action range: {:.2f} ~ {:.2f}".format(min_action, max_action))
-    print("step size: {} (frame skip: {})".format(env.env.dt, env.env.frame_skip))
+    print("Action range: {:.2f} ~ {:.2f}".format(min(min_action), max(max_action)))
+    print("step time: {} (frame skip: {})".format(env.env.dt, env.env.frame_skip))
+    if env.env.frame_skip <= args_tester.frameskip_inner:
+        raise Exception(" please check your frameskip_inner ")
 
     trainer = None
     if args_tester.develop_mode is False:

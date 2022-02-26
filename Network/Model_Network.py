@@ -3,6 +3,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
+from torch.optim import lr_scheduler
 import torchbnn as bnn
 from torchbnn.utils import freeze, unfreeze
 
@@ -12,14 +13,15 @@ from Common.Utils import weight_init
 def OutlayerOptimizer(actor, error):
     outlayer_optimizer = optim.Adam(actor.network_outer.parameters(), lr= 0.001)
 
-    loss = abs(torch.tensor(error, dtype=torch.float)).cuda()
+    loss = F.mse_loss(input = error, target=torch.tensor(0.0, dtype=torch.float).cuda())
+    print(loss)
 
     outlayer_optimizer.zero_grad()
-    loss.backwward()
+    loss.backward()
     outlayer_optimizer.step()
 
 class DynamicsNetwork(nn.Module):
-    def __init__(self, state_dim, action_dim, algorithm, args, net_type=None, hidden_dim=(256, 256)):
+    def __init__(self, state_dim, action_dim, steptime, algorithm, args, net_type=None, hidden_dim=(256, 256)):
         super(DynamicsNetwork, self).__init__()
 
         if net_type is None:
@@ -29,6 +31,9 @@ class DynamicsNetwork(nn.Module):
 
         self.state_dim = state_dim
         self.action_dim = action_dim
+        self.steptime = steptime
+
+        self.args = args
 
         self.buffer = algorithm.buffer
         self.batch_size = args.batch_size
@@ -52,8 +57,10 @@ class DynamicsNetwork(nn.Module):
             self.dnmsNNout = bnn.BayesLinear(prior_mu=0, prior_sigma=0.1, in_features=hidden_dim[-1], out_features=self.state_dim)
             self.dnmsNN = self.dnmsNNin.append(self.dnmsNNout).cuda()
 
-        self.dnms_optimizer = optim.Adam(self.dnmsNN.parameters(), lr=0.001)
+        self.dnms_optimizer = optim.Adam(self.dnmsNN.parameters(), lr=0.0001)
         self.dnms_out_optimizer = optim.Adam(self.dnmsNNout.parameters(), lr=0.0001)
+
+        self.scheduler = lr_scheduler.ExponentialLR(self.dnms_optimizer, gamma=0.99)
 
         self.mse_loss = nn.MSELoss()
         self.kl_loss = bnn.BKLLoss(reduction='mean', last_layer_only=False)
@@ -63,8 +70,9 @@ class DynamicsNetwork(nn.Module):
 
     def forward(self, state, action, train=False):
 
-        if type(state) is not torch.Tensor or type(action) is not torch.Tensor:
+        if type(state) is not torch.Tensor:
             state = torch.tensor(state, dtype=torch.float).cuda()
+        if type(action) is not torch.Tensor:
             action = torch.tensor(action, dtype=torch.float).cuda()
 
         if train is True:
@@ -85,23 +93,25 @@ class DynamicsNetwork(nn.Module):
             s, a, _, ns, _ = self.buffer.sample(self.batch_size)
 
             z = self.forward(s, a, train=True)
-            mse = self.mse_loss(z, ns)
+            s_d = (ns - s)/self.steptime
+            mse = self.mse_loss(z, s_d)
             kl = self.kl_loss(self.dnmsNN)
             cost = mse + self.kl_weight * kl
 
             self.dnms_optimizer.zero_grad()
             cost.backward()
             self.dnms_optimizer.step()
+        # self.scheduler.step()
 
         mse = mse.cpu().detach().numpy()
         kl = kl.cpu().detach().numpy()
         return mse, kl
 
     def adaptive_train(self, error):
-        loss = abs(torch.tensor(error, dtype=torch.float)).cuda()
+        loss = F.mse_loss(input = error, target=torch.tensor(0.0, dtype=torch.float).cuda())
 
         self.dnms_out_optimizer.zero_grad()
-        loss.backwward()
+        loss.backward()
         self.dnms_out_optimizer.step()
 
     def eval_model(self, state, action, next_state):
@@ -109,19 +119,21 @@ class DynamicsNetwork(nn.Module):
         state = torch.tensor(state, dtype=torch.float).cuda()
         action = torch.tensor(action, dtype=torch.float).cuda()
         next_state = torch.tensor(next_state, dtype=torch.float).cuda()
+        state_d = (next_state - state)/self.steptime
+        # print("state", state, "action", action, "next state", next_state, "state dif", state_d)
 
         cost = 0.0
 
         if self.net_type == "DNN":
             z = self.forward(state, action)
-            mse = self.mse_loss(z, next_state)
+            mse = self.mse_loss(z, state_d)
             kl = self.kl_loss(self.dnmsNN)
             cost = mse + self.kl_weight * kl
 
         if self.net_type == "BNN":
             freeze(self.dnmsNN)
             z = self.forward(state, action)
-            mse = self.mse_loss(z, next_state)
+            mse = self.mse_loss(z, state_d)
             kl = self.kl_loss(self.dnmsNN)
             cost = mse + self.kl_weight * kl
             unfreeze(self.dnmsNN)
@@ -130,7 +142,10 @@ class DynamicsNetwork(nn.Module):
         return cost
 
 class InverseDynamicsNetwork(nn.Module):
-    def __init__(self, state_dim, action_dim, algorithm, args, net_type=None, hidden_dim=(256, 256)):
+    def __init__(self, state_dim, action_dim,
+                 max_action, min_action,
+                 steptime, algorithm,
+                 args, net_type=None, hidden_dim=(256, 256)):
         super(InverseDynamicsNetwork, self).__init__()
 
         if net_type is None:
@@ -140,6 +155,11 @@ class InverseDynamicsNetwork(nn.Module):
 
         self.state_dim = state_dim
         self.action_dim = action_dim
+        self.max_action = torch.tensor(max_action, dtype=torch.float)
+        self.min_action = torch.tensor(min_action, dtype=torch.float)
+        self.steptime = steptime
+
+        self.args = args
 
         self.buffer = algorithm.buffer
         self.batch_size = args.batch_size
@@ -162,8 +182,10 @@ class InverseDynamicsNetwork(nn.Module):
             self.inv_dnmsNNout = bnn.BayesLinear(prior_mu=0, prior_sigma=0.1, in_features=hidden_dim[-1], out_features=self.action_dim)
             self.inv_dnmsNN = self.inv_dnmsNNin.append(self.inv_dnmsNNout).cuda()
 
-        self.inv_dnms_optimizer = optim.Adam(self.inv_dnmsNN.parameters(), lr=0.001)
+        self.inv_dnms_optimizer = optim.Adam(self.inv_dnmsNN.parameters(), lr=0.0001)
         self.inv_dnms_out_optimizer = optim.Adam(self.inv_dnmsNNout.parameters(), lr=0.0001)
+
+        self.scheduler = lr_scheduler.ExponentialLR(self.inv_dnms_optimizer, gamma=0.99)
 
         self.mse_loss = nn.MSELoss()
         self.kl_loss = bnn.BKLLoss(reduction='mean', last_layer_only=False)
@@ -171,22 +193,22 @@ class InverseDynamicsNetwork(nn.Module):
 
         self.apply(weight_init)
 
-    def forward(self, state, next_state, train=False):
+    def forward(self, state_d, next_state, train=False):
 
-        if type(state) is not torch.Tensor or type(next_state) is not torch.Tensor:
-            state = torch.tensor(state, dtype=torch.float).cuda()
+        if type(state_d) is not torch.Tensor:
+            state_d = torch.tensor(state_d, dtype=torch.float).cuda()
+        if type(next_state) is not torch.Tensor:
             next_state = torch.tensor(next_state, dtype=torch.float).cuda()
 
         if train is True:
-            z = torch.cat([state, next_state], dim=1)
+            z = torch.cat([state_d, next_state], dim=1)
         else:
-            z = torch.cat([state, next_state])
-
-        print(state)
-        print(next_state)
+            z = torch.cat([state_d, next_state])
 
         for i in range(len(self.inv_dnmsNN)):
             z = self.inv_dnmsNN[i](z)
+
+        z = torch.tanh(z)
         return z
 
     def train_all(self, training_num):
@@ -196,8 +218,9 @@ class InverseDynamicsNetwork(nn.Module):
         for i in range(training_num):
 
             s, a, _, ns, _ = self.buffer.sample(self.batch_size)
+            s_d = (ns - s)/self.steptime
 
-            z = self.forward(s, ns, train=True)
+            z = self.forward(s_d, ns, train=True)
             mse = self.mse_loss(z, a)
             kl = self.kl_loss(self.inv_dnmsNN)
             cost = mse + self.kl_weight * kl
@@ -205,17 +228,17 @@ class InverseDynamicsNetwork(nn.Module):
             self.inv_dnms_optimizer.zero_grad()
             cost.backward()
             self.inv_dnms_optimizer.step()
+        # self.scheduler.step()
 
         mse = mse.cpu().detach().numpy()
         kl = kl.cpu().detach().numpy()
         return mse, kl
 
     def adaptive_train(self, error):
-
-        loss = abs(torch.tensor(error, dtype=torch.float))
+        loss = F.mse_loss(input = error, target=torch.tensor(0.0, dtype=torch.float).cuda())
 
         self.inv_dnms_out_optimizer.zero_grad()
-        loss.backwward()
+        loss.backward()
         self.inv_dnms_out_optimizer.step()
 
     def eval_model(self, state, action, next_state):
@@ -223,11 +246,12 @@ class InverseDynamicsNetwork(nn.Module):
         state = torch.tensor(state, dtype=torch.float).cuda()
         action = torch.tensor(action, dtype=torch.float).cuda()
         next_state = torch.tensor(next_state, dtype=torch.float).cuda()
-
+        state_d = (next_state - state)/self.steptime
+        # print("state", state, "action", action, "next state", next_state, "state dif", state_d)
         cost = 0.0
 
         if self.net_type == "DNN":
-            z = self.forward(state, next_state)
+            z = self.forward(state_d, next_state)
             mse = self.mse_loss(z, action)
             kl = self.kl_loss(self.inv_dnmsNN)
             cost = mse + self.kl_weight * kl
@@ -235,7 +259,7 @@ class InverseDynamicsNetwork(nn.Module):
         if self.net_type == "BNN":
             freeze(self.inv_dnmsNN)
 
-            z = self.forward(state, next_state)
+            z = self.forward(state_d, next_state)
             mse = self.mse_loss(z, action)
             kl = self.kl_loss(self.inv_dnmsNN)
             cost = mse + self.kl_weight * kl

@@ -4,12 +4,10 @@ import cv2
 from Common.Utils import *
 
 class Basic_trainer():
-    def __init__(self, env, test_env, algorithm, max_action, min_action, args, args_test=None):
+    def __init__(self, env, test_env, algorithm, max_action, min_action, args, args_tester=None):
 
-        if args_test is None:
-            self.args = args
-        else:
-            self.args = args_test
+        self.args = args
+        self.args_tester = args_tester
 
         self.domain_type = self.args.domain_type
         self.env_name = self.args.env_name
@@ -22,7 +20,6 @@ class Basic_trainer():
         self.min_action = min_action
 
         self.discrete = self.args.discrete
-        self.render = self.args.render
         self.max_step = self.args.max_step
 
         self.eval = self.args.eval
@@ -34,10 +31,15 @@ class Basic_trainer():
         self.total_step = 0
         self.local_step = 0
         self.eval_num = 0
+        self.test_num = 0
 
-        self.train_mode = None
-
-        self.path = self.args.path
+        if self.args_tester is None:
+            self.render = self.args.render
+            self.path = self.args.path
+        else:
+            self.render = self.args_tester.render
+            self.path = self.args_tester.path
+            self.test_episode = self.args_tester.test_episode
 
         # score
         self.score = 0
@@ -45,6 +47,7 @@ class Basic_trainer():
         self.total_score = 0
         self.best_score = 0
 
+        self.train_mode = None
         if args.train_mode == 'offline':
             self.train_mode = self.offline_train
         elif args.train_mode == 'online':
@@ -96,11 +99,7 @@ class Basic_trainer():
             while not done:
                 self.local_step += 1
                 action = self.algorithm.eval_action(observation)
-
-                if self.discrete == False:
-                    env_action = self.max_action * np.clip(action, -1, 1)
-                else:
-                    env_action = action
+                env_action = denormalize(action, self.max_action, self.min_action)
 
                 next_observation, reward, done, _ = self.test_env.step(env_action)
 
@@ -117,7 +116,7 @@ class Basic_trainer():
                 eval_reward += reward
                 observation = next_observation
 
-                if self.local_step == 8000:
+                if self.local_step == self.env.spec.max_episode_steps:
                     alive_cnt += 1
 
             reward_list.append(eval_reward)
@@ -174,20 +173,17 @@ class Basic_trainer():
                     observation = observation / 255.
 
                 if self.total_step <= self.algorithm.training_start:
-                   action = self.env.action_space.sample()
-                   next_observation, reward, done, _ = self.env.step(action)
+                    env_action = self.env.action_space.sample()
+                    action = normalize(env_action, self.max_action, self.min_action)
                 else:
                     if self.algorithm.buffer.on_policy == False:
                         action = self.algorithm.get_action(observation)
                     else:
                         action, log_prob = self.algorithm.get_action(observation)
+                    env_action = denormalize(action, self.max_action, self.min_action)
 
-                    if self.discrete == False:
-                        env_action = self.max_action * np.clip(action, -1, 1)
-                    else:
-                        env_action = action
+                next_observation, reward, done, info = self.env.step(env_action)
 
-                    next_observation, reward, done, info = self.env.step(env_action)
                 if self.local_step + 1 == 1000:
                     real_done = 0.
                 else:
@@ -216,14 +212,14 @@ class Basic_trainer():
         self.env.close()
 
     def test(self):
-        self.eval_num += 1
+        self.test_num += 1
         episode = 0
         reward_list = []
         alive_cnt = 0
 
         while True:
             self.local_step = 0
-            if episode >= self.eval_episode:
+            if episode >= self.test_episode:
                 break
             episode += 1
             eval_reward = 0
@@ -237,12 +233,7 @@ class Basic_trainer():
             while not done:
                 self.local_step += 1
                 action = self.algorithm.eval_action(observation)
-
-                if self.discrete == False:
-                    env_action = self.max_action * np.clip(action, -1, 1)
-                else:
-                    env_action = action
-
+                env_action = denormalize(action, self.max_action, self.min_action)
                 next_observation, reward, done, _ = self.test_env.step(env_action)
 
                 if self.render == True:
@@ -258,13 +249,12 @@ class Basic_trainer():
                 eval_reward += reward
                 observation = next_observation
 
-                if self.local_step == 8000:
+                if self.local_step == self.env.spec.max_episode_steps:
                     print(episode, "th pos :", observation[0:7])
                     alive_cnt += 1
 
             reward_list.append(eval_reward)
 
-        save_path(self.args.path, "path_normal")
         print("Eval  | Average Reward {:.2f}, Max reward: {:.2f}, Min reward: {:.2f}, Stddev reward: {:.2f}, alive rate : {:.2f}".format(sum(reward_list)/len(reward_list), max(reward_list), min(reward_list), np.std(reward_list), 100*(alive_cnt/self.eval_episode)))
         self.test_env.close()
 

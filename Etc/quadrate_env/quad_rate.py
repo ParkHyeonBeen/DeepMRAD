@@ -68,9 +68,6 @@ class QuadRateEnv(mujoco_env.MujocoEnv, utils.EzPickle):
                 action = self.PID(0.5 * input[:3])
             else:
                 raise Exception(" check your test mode ")
-
-        action = denomalize(input, self.act_max, self.act_min)
-        action = np.clip(action, a_min=self.act_min, a_max=self.act_max)
         
         if args.add_disturbance == True:
             action = self.add_disturbance(action)
