@@ -59,27 +59,41 @@ def quat2rpy(quat):
     return euler
 
 def normalize(input, act_max, act_min):
-    normal_mat = np.zeros((len(input), len(input)))
-    np.fill_diagonal(normal_mat,  2 / (act_max - act_min))
+    if type(input) is not torch.Tensor:
+        normal_mat = np.zeros((len(input), len(input)))
+        np.fill_diagonal(normal_mat,  2 / (act_max - act_min))
+    else:
+        act_max = torch.tensor(act_max, dtype=torch.float).cuda()
+        act_min = torch.tensor(act_min, dtype=torch.float).cuda()
+        normal_mat = torch.diag(2 / (act_max - act_min))
     normal_bias = (act_max + act_min) / 2
     input = (input - normal_bias) @ normal_mat
     return input
 
 def denormalize(input, act_max, act_min):
-    denormal_mat = np.zeros((len(input), len(input)))
-    np.fill_diagonal(denormal_mat, (act_max - act_min) / 2)
+    if type(input) is not torch.Tensor:
+        denormal_mat = np.zeros((len(input), len(input)))
+        np.fill_diagonal(denormal_mat, (act_max - act_min) / 2)
+    else:
+        act_max = torch.tensor(act_max, dtype=torch.float).cuda()
+        act_min = torch.tensor(act_min, dtype=torch.float).cuda()
+        denormal_mat = torch.diag((act_max - act_min) / 2)
+
     denormal_bias = (act_max + act_min) / 2
     input = input @ denormal_mat + denormal_bias
     return input
 
-def add_noise(action, percent = 0.1):
+def add_noise(action, scale = 0.1):
     for i in range(len(action)):
-        action[i] += action[i]*random.uniform(-percent, percent)
+        action[i] += random.uniform(-scale, scale)
     return action
 
-def add_disturbance(action, step, terminal_time, percent = 0.1):
+def add_disturbance(action, step, terminal_time, scale = 0.1, frequency = None):
+    if frequency is None:
+        frequency = [2, 4, 8]
+
     for i in range(len(action)):
-        action[i] += action[i]*percent*math.sin((random.choice([2, 4, 8])*math.pi / terminal_time)*step)
+        action[i] += scale*math.sin((random.choice(frequency)*math.pi / terminal_time)*step)
     return action
 
 ## related to saved data ##

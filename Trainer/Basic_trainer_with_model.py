@@ -104,15 +104,25 @@ class Model_trainer():
 
         if self.args_tester is not None:
             if "DNN" in self.args_tester.modelnet_name:
-                self.model_net_DNN.load_state_dict(
-                    torch.load(self.path + "model/DNN/" + self.args_tester.modelnet_name))
-                self.inv_model_net_DNN.load_state_dict(
-                    torch.load(self.path + "model/DNN/inv" + self.args_tester.modelnet_name))
+                if self.args_tester.prev_result is True:
+                    path_model = self.path + "storage/" + args_tester.prev_result_fname + "/saved_net/model/DNN/" + self.args_tester.modelnet_name
+                    path_invmodel = self.path + "storage/" + args_tester.prev_result_fname + "/saved_net/model/DNN/inv" + self.args_tester.modelnet_name
+                else:
+                    path_model = self.path + "saved_net/model/DNN/" + self.args_tester.modelnet_name
+                    path_invmodel = self.path + "saved_net/model/DNN/inv" + self.args_tester.modelnet_name
+
+                self.model_net_DNN.load_state_dict(torch.load(path_model))
+                self.inv_model_net_DNN.load_state_dict(torch.load(path_invmodel))
             if "BNN" in self.args_tester.modelnet_name:
-                self.model_net_BNN.load_state_dict(
-                    torch.load(self.path + "model/BNN/" + self.args_tester.modelnet_name))
-                self.inv_model_net_BNN.load_state_dict(
-                    torch.load(self.path + "model/BNN/inv" + self.args_tester.modelnet_name))
+                if self.args_tester.prev_result is True:
+                    path_model = self.path + "storage/" + args_tester.prev_result_fname + "/saved_net/model/BNN/" + self.args_tester.modelnet_name
+                    path_invmodel = self.path + "storage/" + args_tester.prev_result_fname + "/saved_net/model/BNN/inv" + self.args_tester.modelnet_name
+                else:
+                    path_model = self.path + "saved_net/model/BNN/" + self.args_tester.modelnet_name
+                    path_invmodel = self.path + "saved_net/model/BNN/inv" + self.args_tester.modelnet_name
+
+                self.model_net_BNN.load_state_dict(torch.load(path_model))
+                self.inv_model_net_BNN.load_state_dict(torch.load(path_invmodel))
 
     def offline_train(self, d, local_step):
         if d:
@@ -347,33 +357,40 @@ class Model_trainer():
             while not done:
                 self.local_step += 1
                 action_NN = self.algorithm.eval_action(state)   # policy update 하려면, eval_action 내부의 .cpu().numpy() 제거
+                action_NN_tensor = torch.tensor(action_NN, dtype=torch.float).cuda()
                 env_action_NN = denormalize(action_NN, self.max_action, self.min_action)
-                env_action_NN = torch.tensor(action_NN, dtype=torch.float).cuda()
+                env_action_NN = torch.tensor(env_action_NN, dtype=torch.float).cuda()
 
                 for i in range(self.steps_inloop):
                     if i == 0:
                         state_inner = state
                     # action step
                     env_action_dob = env_action_NN - disturbance_pred
-                    env_action_real = add_noise(env_action_dob, percent=0.1)
+                    if self.args_tester.add_noise is True:
+                        env_action_dob = add_noise(env_action_dob, scale=self.args_tester.noise_scale)
+                    if self.args_tester.add_disturbance is True:
+                        env_action_dob = add_disturbance(env_action_dob, self.local_step,
+                                                         self.env.spec.max_episode_steps,
+                                                         scale=self.args_tester.disturbance_scale,
+                                                         frequency=self.args_tester.disturbance_frequency)
                     # real system
-                    env_action_real_npy = env_action_real.cpu().detach().numpy()
+                    env_action_real_npy = env_action_dob.cpu().detach().numpy()
                     self.test_env.env.do_simulation(env_action_real_npy, self.args_tester.frameskip_inner)
                     next_state_inner = self.test_env.env._get_obs()
-                    next_state_inner = self.test_env.env._add_error(next_state_inner)
+                    # next_state_inner = self.test_env.env._add_error(next_state_inner)
                     # predict disturbance
                     state_d = (next_state_inner - state_inner)/self.steptime_inner
                     if "DNN" in self.args_tester.modelnet_name:
-                        disturbance_pred = denormalize(self.inv_model_net_DNN(state_d, next_state_inner) - action_NN, self.max_action, self.min_action)
+                        disturbance_pred = denormalize(self.inv_model_net_DNN(state_d, next_state_inner) - action_NN_tensor, self.max_action, self.min_action)
                     if "BNN" in self.args_tester.modelnet_name:
-                        disturbance_pred = denormalize(self.inv_model_net_BNN(state_d, next_state_inner) - action_NN, self.max_action, self.min_action)
+                        disturbance_pred = denormalize(self.inv_model_net_BNN(state_d, next_state_inner) - action_NN_tensor, self.max_action, self.min_action)
 
                     # predict system model
                     if i == self.steps_inloop:
                         if "DNN" in self.args_tester.modelnet_name:
-                            state_d_pred = self.model_net_DNN(state_inner, normalize(env_action_real, self.max_action, self.min_action))
+                            state_d_pred = self.model_net_DNN(state_inner, normalize(env_action_dob, self.max_action, self.min_action))
                         if "BNN" in self.args_tester.modelnet_name:
-                            state_d_pred = self.model_net_BNN(state_inner, normalize(env_action_real, self.max_action, self.min_action))
+                            state_d_pred = self.model_net_BNN(state_inner, normalize(env_action_dob, self.max_action, self.min_action))
                         model_error = torch.tensor((next_state_inner - state_inner), dtype=torch.float).cuda()\
                                       - state_d_pred*self.steptime_inner
 
@@ -383,14 +400,14 @@ class Model_trainer():
                 if remain_frameskip != 0:
                     self.test_env.env.do_simulation(action_NN, remain_frameskip)
                     next_state = self.test_env.env._get_obs()
-                    next_state = self.test_env.env._add_error(next_state)
+                    # next_state = self.test_env.env._add_error(next_state)
                 else:
                     next_state = state_inner
 
-                if "DNN" in self.args_tester.modelnet_name:
-                    self.inv_model_net_DNN.adaptive_train(model_error)
-                if "BNN" in self.args_tester.modelnet_name:
-                    self.inv_model_net_BNN.adaptive_train(model_error)
+                # if "DNN" in self.args_tester.modelnet_name:
+                #     self.inv_model_net_DNN.adaptive_train(model_error)
+                # if "BNN" in self.args_tester.modelnet_name:
+                #     self.inv_model_net_BNN.adaptive_train(model_error)
 
                 if self.render == True:
                     if self.domain_type in {'gym', "atari"}:
@@ -406,11 +423,12 @@ class Model_trainer():
                 state = next_state
 
                 if self.local_step == self.env.spec.max_episode_steps:
-                    print(episode, "th pos :", state[0:7])
+                    # print(episode, "th pos :", state[0:7])
                     alive_cnt += 1
+                    break
             error_list.append(eval_error/self.local_step)
 
-        print("Eval  | Average error {:.2f}, Max error: {:.2f}, Min error: {:.2f}, Stddev error: {:.2f}, alive rate : {:.2f}".format(sum(error_list)/len(error_list), max(error_list), min(error_list), np.std(error_list), 100*(alive_cnt/self.eval_episode)))
+        # print("Eval  | Average error {:.2f}, Max error: {:.2f}, Min error: {:.2f}, Stddev error: {:.2f}, alive rate : {:.2f}".format(sum(error_list)/len(error_list), max(error_list), min(error_list), np.std(error_list), 100*(alive_cnt/self.eval_episode)))
         self.test_env.close()
 
 

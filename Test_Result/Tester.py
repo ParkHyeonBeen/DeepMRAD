@@ -13,16 +13,26 @@ def hyperparameters():
     parser.add_argument('--develop-mode', default=False, type=bool, help="you should choose whether basic or model_based")
     parser.add_argument('--frameskip_inner', default=1, type=int, help='frame skip in inner loop ')
 
-    parser.add_argument('--path', default="X:/env_mbrl/Results/saved_net/", help='path for save')
+    parser.add_argument('--path', default="X:/env_mbrl/Results/", help='path for save')
+    parser.add_argument('--prev-result', default=False, type=bool, help='if previous result, True')
+    parser.add_argument('--prev-result-fname', default="0304_HalfCheetah-v3", help='choose the result to view')
     parser.add_argument('--modelnet-name', default="modelDNN_better", help='modelDNN_better, modelBNN_better')
     parser.add_argument('--policynet-name', default="policy_best", help='best, better, current, total')
 
+    # setting real world
+    parser.add_argument('--add_noise', default=False, type=bool, help="if True, add noise to action")
+    parser.add_argument('--noise_scale', default=0.1, type=float, help='white noise having the noise scale')
+
+    parser.add_argument('--add_disturbance', default=True, type=bool, help="if True, add disturbance to action")
+    parser.add_argument('--disturbance_scale', default=0.5, type=float, help='choose disturbance scale')
+    parser.add_argument('--disturbance_frequency', default=[2, 4, 8], type=list, help='choose disturbance frequency')
+
     # environment
+    parser.add_argument('--env-name', default='Reacher-v2', help='Pendulum-v0, MountainCarContinuous-v0')
+    parser.add_argument('--render', default=True, type=bool)
+    parser.add_argument('--test-episode', default=5, type=int, help='Number of episodes to perform evaluation')
     parser.add_argument('--algorithm', default='SAC_v2', type=str, help='you should choose same algorithm with loaded network')
     parser.add_argument('--domain-type', default='gym', type=str, help='gym or dmc, dmc/image')
-    parser.add_argument('--env-name', default='Thrower-v2', help='Pendulum-v0, MountainCarContinuous-v0')
-    parser.add_argument('--render', default=True, type=bool)
-    parser.add_argument('--test-episode', default=10, type=int, help='Number of episodes to perform evaluation')
     parser.add_argument('--random-seed', default=-1, type=int, help='Random seed setting')
 
     parser.add_argument('--cpu-only', default=False, type=bool, help='force to use cpu only')
@@ -53,7 +63,12 @@ def main(args_tester):
     print("Random Seed:", random_seed)
 
     #env setting
-    env, test_env = gym_env(args.env_name, random_seed)
+    if args_tester.prev_result is True:
+        env_name = args_tester.prev_result_fname[5:]
+    else:
+        env_name = args_tester.env_name
+
+    env, test_env = gym_env(env_name, random_seed)
 
     state_dim = env.observation_space.shape[0]
     action_dim = env.action_space.shape[0]
@@ -68,7 +83,12 @@ def main(args_tester):
     elif args_tester.algorithm == 'DDPG':
         algorithm = DDPG(state_dim, action_dim, device, args)
 
-    algorithm.actor.load_state_dict(torch.load(args_tester.path + "policy/" + args_tester.policynet_name))
+    if args_tester.prev_result is True:
+        path_policy = args_tester.path + "storage/" + args_tester.prev_result_fname + "/saved_net/policy/" + args_tester.policynet_name
+    else:
+        path_policy = args_tester.path + "saved_net/policy/" + args_tester.policynet_name
+
+    algorithm.actor.load_state_dict(torch.load(path_policy))
 
     print("Training of", args.domain_type + '_' + args.env_name)
     print("Algorithm:", algorithm.name)

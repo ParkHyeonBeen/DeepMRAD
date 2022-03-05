@@ -234,6 +234,13 @@ class Basic_trainer():
                 self.local_step += 1
                 action = self.algorithm.eval_action(observation)
                 env_action = denormalize(action, self.max_action, self.min_action)
+                if self.args_tester.add_noise is True:
+                    env_action = add_noise(env_action, scale=self.args_tester.noise_scale)
+                if self.args_tester.add_disturbance is True:
+                    env_action = add_disturbance(env_action, self.local_step,
+                                                     self.env.spec.max_episode_steps,
+                                                     scale=self.args_tester.disturbance_scale,
+                                                     frequency=self.args_tester.disturbance_frequency)
                 next_observation, reward, done, _ = self.test_env.step(env_action)
 
                 if self.render == True:
@@ -250,7 +257,7 @@ class Basic_trainer():
                 observation = next_observation
 
                 if self.local_step == self.env.spec.max_episode_steps:
-                    print(episode, "th pos :", observation[0:7])
+                    # print(episode, "th pos :", observation[0:7])
                     alive_cnt += 1
 
             reward_list.append(eval_reward)
