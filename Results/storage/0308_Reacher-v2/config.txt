@@ -1,0 +1,8 @@
+Training of gym_Reacher-v2
+Algorithm: SAC_v2
+State dim: 11
+Action dim: 2
+Action range: -1.00 ~ 1.00
+step size: 0.002 (frame skip: 2)
+save path :  X:/env_mbrl/Results/Result6/
+model lr : 0.001, model klweight : 0.05, inv model lr : 0.0001, inv model klweight : 0.01

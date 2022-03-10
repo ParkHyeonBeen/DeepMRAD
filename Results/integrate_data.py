@@ -5,18 +5,18 @@ import os, argparse
 def hyperparameters():
     parser = argparse.ArgumentParser(description='Result viewer')
 
-    parser.add_argument('--watch-cost', default=False, type=bool, help='if you wanna watch cost graph, True')
-    parser.add_argument('--watch-reward', default=True, type=bool, help='if you wanna watch reward graph, True')
+    parser.add_argument('--watch-cost', default=True, type=bool, help='if you wanna watch cost graph, True')
+    parser.add_argument('--watch-reward', default=False, type=bool, help='if you wanna watch reward graph, True')
+    parser.add_argument('--is-eval', default=False, type=bool, help='whether at evaluation or training')
 
     parser.add_argument('--data-type', default="normal", type=str, help="normal, path")
     parser.add_argument('--file-type', default=".csv", type=str, help=".csv, .npy")
     parser.add_argument('--start-index', default=1, type=int, help='start index of plot to be viewed')
-    parser.add_argument('--data-index', default=3, type=int, help='data index to be viewed')
-    parser.add_argument('--is-eval', default=True, type=bool, help='whether at evaluation or training')
+    parser.add_argument('--data-index', default=4, type=int, help='data index to be viewed')
 
     parser.add_argument('--path', default="X:/env_mbrl/Results/", help='path of saved data')
     parser.add_argument('--prev-result', default=False, type=bool, help='if previous result, True')
-    parser.add_argument('--prev-result-fname', default="0301_inverteddoublependulum/", help='choose the result to view')
+    parser.add_argument('--prev-result-fname', default="0310_Ant-v3/", help='choose the result to view')
 
     args = parser.parse_args()
 
@@ -25,7 +25,7 @@ def hyperparameters():
 def main(args):
 
     if args.prev_result is False:
-        path_base = args.path + 'saved_log/'
+        path_base = args.path + 'Result/saved_log/'
     else:
         path_base = args.path + 'storage/' + args.prev_result_fname + 'saved_log/'
     i = args.start_index

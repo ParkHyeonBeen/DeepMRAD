@@ -1,5 +1,9 @@
-import argparse
+import argparse, sys
+from pathlib import Path
 import torch
+
+sys.path.append(str(Path('run_SACv2.py').parent.absolute()))   # 절대 경로에 추가
+
 from Algorithm.SAC_v2 import SAC_v2
 from Algorithm.ImageRL.SAC import ImageSAC_v2
 
@@ -8,9 +12,13 @@ from Common.Utils import set_seed, gym_env, dmc_env, dmc_image_env, dmcr_env
 
 def hyperparameters():
     parser = argparse.ArgumentParser(description='Soft Actor Critic (SAC) v2 example')
+
+    # note in txt
+    parser.add_argument('--note', default="use frame skip instead of steptime to compute differential states", type=str, help='note about what to change')
+
     #environment
     parser.add_argument('--domain-type', default='gym', type=str, help='gym or dmc, dmc/image')
-    parser.add_argument('--env-name', default='Reacher-v2', help='Pendulum-v0, MountainCarContinuous-v0')
+    parser.add_argument('--env-name', default='Humanoid-v3', help='Pendulum-v0, MountainCarContinuous-v0')
     parser.add_argument('--discrete', default=False, type=bool, help='Always Continuous')
     parser.add_argument('--render', default=False, type=bool)
     parser.add_argument('--training-start', default=1000, type=int, help='First step to start training')
@@ -59,8 +67,13 @@ def hyperparameters():
     # estimate a model dynamics
     parser.add_argument('--develop-mode', default=True, type=bool, help="you should choose whether basic or model_base")
     parser.add_argument('--net-type', default="DNN", help='DNN, BNN')
+    parser.add_argument('--model-lr', default=0.001, type=float)
+    parser.add_argument('--model-kl-weight', default=0.05, type=float)
+    parser.add_argument('--inv-model-lr', default=0.001, type=float)
+    parser.add_argument('--inv-model-kl-weight', default=0.1, type=float)
+
     # save path
-    parser.add_argument('--path', default="X:/env_mbrl/Results/", help='path for save')
+    parser.add_argument('--path', default="X:/env_mbrl/Results/Result/", help='path for save')
 
     args = parser.parse_args()
 
@@ -105,13 +118,20 @@ def main(args):
         algorithm = ImageSAC_v2(state_dim, action_dim, device, args)
 
     # algorithm.actor.load_state_dict(torch.load('X:/env_mbrl/Results/saved_net/policy/policy_current'))
+    with open(args.path + 'config.txt', 'w') as f:
 
-    print("Training of", args.domain_type + '_' + args.env_name)
-    print("Algorithm:", algorithm.name)
-    print("State dim:", state_dim)
-    print("Action dim:", action_dim)
-    print("Action range: {:.2f} ~ {:.2f}".format(min(min_action), max(max_action)))
-    print("step size: {} (frame skip: {})".format(env.env.dt, env.env.frame_skip))
+        print("Training of", args.domain_type + '_' + args.env_name, file=f)
+        print("Algorithm:", algorithm.name, file=f)
+        print("State dim:", state_dim, file=f)
+        print("Action dim:", action_dim, file=f)
+        print("Action range: {:.2f} ~ {:.2f}".format(min(min_action), max(max_action)), file=f)
+        print("step size: {} (frame skip: {})".format(env.env.dt, env.env.frame_skip), file=f)
+
+        print("save path : ", args.path, file=f)
+        print("model lr : {}, model klweight : {}, inv model lr : {}, inv model klweight : {}".
+              format(args.model_lr, args.model_kl_weight, args.inv_model_lr, args.inv_model_kl_weight), file=f)
+
+        print("consideration note : ", args.note, file=f)
 
     if args.develop_mode is False:
         trainer = Basic_trainer(

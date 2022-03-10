@@ -8,7 +8,6 @@ from collections import deque
 from skimage.util.shape import view_as_windows
 import matplotlib.pyplot as plt
 
-
 # For testing whether a number is close to zero
 _FLOAT_EPS = np.finfo(np.float64).eps
 _EPS4 = _FLOAT_EPS * 4.0
@@ -58,7 +57,11 @@ def quat2rpy(quat):
     euler = np.array(euler)
     return euler
 
-def normalize(input, act_max, act_min):
+def normalize(input, act_max, act_min, istest = False):
+    if istest is True:
+        act_max = act_max/10
+        act_min = act_min/10
+
     if type(input) is not torch.Tensor:
         normal_mat = np.zeros((len(input), len(input)))
         np.fill_diagonal(normal_mat,  2 / (act_max - act_min))
@@ -70,7 +73,11 @@ def normalize(input, act_max, act_min):
     input = (input - normal_bias) @ normal_mat
     return input
 
-def denormalize(input, act_max, act_min):
+def denormalize(input, act_max, act_min, istest = False):
+    if istest is True:
+        act_max = act_max/10
+        act_min = act_min/10
+
     if type(input) is not torch.Tensor:
         denormal_mat = np.zeros((len(input), len(input)))
         np.fill_diagonal(denormal_mat, (act_max - act_min) / 2)

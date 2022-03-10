@@ -26,9 +26,6 @@ class Model_trainer():
         self.state_dim = state_dim
         self.action_dim = action_dim
 
-        self.steptime_train = self.env.env.dt
-        self.steptime_xml = (self.steptime_train / self.env.env.frame_skip)
-
         self.max_action = max_action
         self.min_action = min_action
 
@@ -69,28 +66,30 @@ class Model_trainer():
         self.buffer = self.args.buffer
         self.buffer_freq = self.args.buffer_freq
 
+        self.steptime = self.env.env.dt
+        self.steptime_xml = (self.steptime / self.env.env.frame_skip)
+        self.frameskip = self.test_env.env.frame_skip
+
         if self.args_tester is None:
             self.render = self.args.render
             self.path = self.args.path
-            self.steptime = self.steptime_train
+
         else:
-            self.steptime_inner = self.args_tester.frameskip_inner * self.steptime_xml
-            self.steps_inloop = self.test_env.env.frame_skip//self.args_tester.frameskip_inner
+            self.steps_inloop = self.test_env.env.frame_skip_origin//self.frameskip
             self.render = self.args_tester.render
             self.path = self.args_tester.path
-            self.steptime = self.steptime_inner
             self.test_episode = self.args_tester.test_episode
 
-        self.model_net_DNN = DynamicsNetwork(self.state_dim, self.action_dim, self.steptime, self.algorithm, self.args, net_type="DNN")
-        self.model_net_BNN = DynamicsNetwork(self.state_dim, self.action_dim, self.steptime, self.algorithm, self.args, net_type="BNN")
+        self.model_net_DNN = DynamicsNetwork(self.state_dim, self.action_dim, self.frameskip, self.algorithm, self.args, net_type="DNN")
+        self.model_net_BNN = DynamicsNetwork(self.state_dim, self.action_dim, self.frameskip, self.algorithm, self.args, net_type="BNN")
 
         self.inv_model_net_DNN = InverseDynamicsNetwork(self.state_dim, self.action_dim,
                                                         self.max_action, self.min_action,
-                                                        self.steptime, self.algorithm,
+                                                        self.frameskip, self.algorithm,
                                                         self.args, net_type="DNN")
         self.inv_model_net_BNN = InverseDynamicsNetwork(self.state_dim, self.action_dim,
                                                         self.max_action, self.min_action,
-                                                        self.steptime, self.algorithm,
+                                                        self.frameskip, self.algorithm,
                                                         self.args, net_type="BNN")
 
         # self.model_net_DNN.load_state_dict(
@@ -336,7 +335,7 @@ class Model_trainer():
 
         self.test_num += 1
         episode = 0
-        error_list = []
+        reward_list = []
         alive_cnt = 0
 
         while True:
@@ -344,7 +343,7 @@ class Model_trainer():
             if episode >= self.test_episode:
                 break
             episode += 1
-            eval_error = 0
+            eval_reward = 0
             state = self.test_env.reset()
 
             if '-ram-' in self.env_name:  # Atari Ram state
@@ -356,9 +355,11 @@ class Model_trainer():
 
             while not done:
                 self.local_step += 1
+                reward = 0
+
                 action_NN = self.algorithm.eval_action(state)   # policy update 하려면, eval_action 내부의 .cpu().numpy() 제거
                 action_NN_tensor = torch.tensor(action_NN, dtype=torch.float).cuda()
-                env_action_NN = denormalize(action_NN, self.max_action, self.min_action)
+                env_action_NN = denormalize(action_NN, self.max_action, self.min_action, istest=True)
                 env_action_NN = torch.tensor(env_action_NN, dtype=torch.float).cuda()
 
                 for i in range(self.steps_inloop):
@@ -375,24 +376,25 @@ class Model_trainer():
                                                          frequency=self.args_tester.disturbance_frequency)
                     # real system
                     env_action_real_npy = env_action_dob.cpu().detach().numpy()
-                    self.test_env.env.do_simulation(env_action_real_npy, self.args_tester.frameskip_inner)
-                    next_state_inner = self.test_env.env._get_obs()
-                    # next_state_inner = self.test_env.env._add_error(next_state_inner)
+                    next_state_inner, reward_inner, done, _ = self.test_env.step(env_action_real_npy, inner_loop=self.steps_inloop)
+                    reward += reward_inner
+
                     # predict disturbance
-                    state_d = (next_state_inner - state_inner)/self.steptime_inner
+                    state_d = (next_state_inner - state_inner)/self.frameskip
                     if "DNN" in self.args_tester.modelnet_name:
-                        disturbance_pred = denormalize(self.inv_model_net_DNN(state_d, next_state_inner) - action_NN_tensor, self.max_action, self.min_action)
+                        disturbance_pred = denormalize(self.inv_model_net_DNN(state_d, next_state_inner) - action_NN_tensor, self.max_action, self.min_action, istest=True)
                     if "BNN" in self.args_tester.modelnet_name:
-                        disturbance_pred = denormalize(self.inv_model_net_BNN(state_d, next_state_inner) - action_NN_tensor, self.max_action, self.min_action)
+                        disturbance_pred = denormalize(self.inv_model_net_BNN(state_d, next_state_inner) - action_NN_tensor, self.max_action, self.min_action, istest=True)
 
                     # predict system model
-                    if i == self.steps_inloop:
+                    if i == self.steps_inloop-1:
+
                         if "DNN" in self.args_tester.modelnet_name:
-                            state_d_pred = self.model_net_DNN(state_inner, normalize(env_action_dob, self.max_action, self.min_action))
+                            state_d_pred = self.model_net_DNN(state_inner, normalize(env_action_dob, self.max_action, self.min_action, istest=True))
                         if "BNN" in self.args_tester.modelnet_name:
-                            state_d_pred = self.model_net_BNN(state_inner, normalize(env_action_dob, self.max_action, self.min_action))
+                            state_d_pred = self.model_net_BNN(state_inner, normalize(env_action_dob, self.max_action, self.min_action, istest=True))
                         model_error = torch.tensor((next_state_inner - state_inner), dtype=torch.float).cuda()\
-                                      - state_d_pred*self.steptime_inner
+                                      - state_d_pred*self.frameskip
 
                     state_inner = next_state_inner
 
@@ -400,7 +402,6 @@ class Model_trainer():
                 if remain_frameskip != 0:
                     self.test_env.env.do_simulation(action_NN, remain_frameskip)
                     next_state = self.test_env.env._get_obs()
-                    # next_state = self.test_env.env._add_error(next_state)
                 else:
                     next_state = state_inner
 
@@ -419,16 +420,19 @@ class Model_trainer():
                         cv2.imshow("{}_{}_{}".format(self.algorithm.name, self.domain_type, self.env_name), self.env.render(mode='rgb_array', height=240, width=320))
                         cv2.waitKey(1)
 
-                eval_error += abs(model_error)
+                eval_reward += reward/self.steps_inloop
                 state = next_state
 
                 if self.local_step == self.env.spec.max_episode_steps:
                     # print(episode, "th pos :", state[0:7])
                     alive_cnt += 1
-                    break
-            error_list.append(eval_error/self.local_step)
 
-        # print("Eval  | Average error {:.2f}, Max error: {:.2f}, Min error: {:.2f}, Stddev error: {:.2f}, alive rate : {:.2f}".format(sum(error_list)/len(error_list), max(error_list), min(error_list), np.std(error_list), 100*(alive_cnt/self.eval_episode)))
+            reward_list.append(eval_reward)
+
+        print(
+            "Eval  | Average Reward {:.2f}, Max reward: {:.2f}, Min reward: {:.2f}, Stddev reward: {:.2f}, alive rate : {:.2f}".format(
+                sum(reward_list) / len(reward_list), max(reward_list), min(reward_list), np.std(reward_list),
+                100 * (alive_cnt / self.test_episode)))
         self.test_env.close()
 
 

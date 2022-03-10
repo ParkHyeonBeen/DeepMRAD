@@ -233,7 +233,7 @@ class Basic_trainer():
             while not done:
                 self.local_step += 1
                 action = self.algorithm.eval_action(observation)
-                env_action = denormalize(action, self.max_action, self.min_action)
+                env_action = denormalize(action, self.max_action, self.min_action, istest=True)
                 if self.args_tester.add_noise is True:
                     env_action = add_noise(env_action, scale=self.args_tester.noise_scale)
                 if self.args_tester.add_disturbance is True:
@@ -262,7 +262,7 @@ class Basic_trainer():
 
             reward_list.append(eval_reward)
 
-        print("Eval  | Average Reward {:.2f}, Max reward: {:.2f}, Min reward: {:.2f}, Stddev reward: {:.2f}, alive rate : {:.2f}".format(sum(reward_list)/len(reward_list), max(reward_list), min(reward_list), np.std(reward_list), 100*(alive_cnt/self.eval_episode)))
+        print("Eval  | Average Reward {:.2f}, Max reward: {:.2f}, Min reward: {:.2f}, Stddev reward: {:.2f}, alive rate : {:.2f}".format(sum(reward_list)/len(reward_list), max(reward_list), min(reward_list), np.std(reward_list), 100*(alive_cnt/self.test_episode)))
         self.test_env.close()
 
 

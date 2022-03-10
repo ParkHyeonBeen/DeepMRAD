@@ -1,0 +1,8 @@
+Training of gym_Walker2d-v3
+Algorithm: SAC_v2
+State dim: 17
+Action dim: 6
+Action range: -1.00 ~ 1.00
+step size: 0.008 (frame skip: 4)
+save path :  X:/env_mbrl/Results/Result3/
+model lr : 0.001, model klweight : 0.05, inv model lr : 0.0001, inv model klweight : 0.05

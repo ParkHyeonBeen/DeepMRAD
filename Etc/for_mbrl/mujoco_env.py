@@ -37,16 +37,25 @@ class MujocoEnv(gym.Env):
     """
 
     def __init__(self, model_path, frame_skip):
+
         if model_path.startswith("/"):
             fullpath = model_path
         else:
-            if hyperparameters().develop_mode is False:
-                fullpath = os.path.join(os.path.dirname(__file__), "assets", model_path)
-            else:
+            if hyperparameters().test_on is True and hyperparameters().develop_mode is True:
                 fullpath = os.path.join(os.path.dirname(__file__), "assets_test", model_path)
+                self.frame_skip = hyperparameters().frameskip_inner
+
+            elif hyperparameters().test_on is True and hyperparameters().develop_mode is not True:
+                fullpath = os.path.join(os.path.dirname(__file__), "assets_test", model_path)
+                self.frame_skip = frame_skip
+            else:
+                fullpath = os.path.join(os.path.dirname(__file__), "assets", model_path)
+                self.frame_skip = frame_skip
+
         if not path.exists(fullpath):
             raise IOError("File %s does not exist" % fullpath)
-        self.frame_skip = frame_skip
+        
+        self.frame_skip_origin = frame_skip
         self.model = mujoco_py.load_model_from_path(fullpath)
         self.sim = mujoco_py.MjSim(self.model)
         self.data = self.sim.data
