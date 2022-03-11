@@ -5,6 +5,9 @@ import cv2
 import torch
 
 from Common.Utils import *
+from Common.DeepDOB import DeepDOB
+from Common.MRAP import MRAP
+
 from Network.Model_Network import *
 
 class Model_trainer():
@@ -69,6 +72,8 @@ class Model_trainer():
         self.steptime = self.env.env.dt
         self.steptime_xml = (self.steptime / self.env.env.frame_skip)
         self.frameskip = self.test_env.env.frame_skip
+        self.frameskip_inner = self.args_tester.frameskip_inner
+        self.frameskip_origin = self.test_env.env.frame_skip_origin
 
         if self.args_tester is None:
             self.render = self.args.render
@@ -80,26 +85,18 @@ class Model_trainer():
             self.path = self.args_tester.path
             self.test_episode = self.args_tester.test_episode
 
+        self.deepdob = None
+        self.mrap = None
+
         self.model_net_DNN = DynamicsNetwork(self.state_dim, self.action_dim, self.frameskip, self.algorithm, self.args, net_type="DNN")
         self.model_net_BNN = DynamicsNetwork(self.state_dim, self.action_dim, self.frameskip, self.algorithm, self.args, net_type="BNN")
 
         self.inv_model_net_DNN = InverseDynamicsNetwork(self.state_dim, self.action_dim,
-                                                        self.max_action, self.min_action,
                                                         self.frameskip, self.algorithm,
                                                         self.args, net_type="DNN")
         self.inv_model_net_BNN = InverseDynamicsNetwork(self.state_dim, self.action_dim,
-                                                        self.max_action, self.min_action,
                                                         self.frameskip, self.algorithm,
                                                         self.args, net_type="BNN")
-
-        # self.model_net_DNN.load_state_dict(
-        #     torch.load('X:/env_mbrl/Results/saved_net/model/DNN/' + 'modelDNN_better'))
-        # self.inv_model_net_DNN.load_state_dict(
-        #     torch.load('X:/env_mbrl/Results/saved_net/model/DNN/' + 'invmodelDNN_better'))
-        # self.model_net_BNN.load_state_dict(
-        #     torch.load('X:/env_mbrl/Results/saved_net/model/BNN/' + 'modelBNN_better'))
-        # self.inv_model_net_BNN.load_state_dict(
-        #     torch.load('X:/env_mbrl/Results/saved_net/model/BNN/' + 'invmodelBNN_better'))
 
         if self.args_tester is not None:
             if "DNN" in self.args_tester.modelnet_name:
@@ -107,11 +104,16 @@ class Model_trainer():
                     path_model = self.path + "storage/" + args_tester.prev_result_fname + "/saved_net/model/DNN/" + self.args_tester.modelnet_name
                     path_invmodel = self.path + "storage/" + args_tester.prev_result_fname + "/saved_net/model/DNN/inv" + self.args_tester.modelnet_name
                 else:
-                    path_model = self.path + "saved_net/model/DNN/" + self.args_tester.modelnet_name
-                    path_invmodel = self.path + "saved_net/model/DNN/inv" + self.args_tester.modelnet_name
+                    path_model = self.path + self.args_tester.result_index + "saved_net/model/DNN/" + self.args_tester.modelnet_name
+                    path_invmodel = self.path + self.args_tester.result_index + "saved_net/model/DNN/inv" + self.args_tester.modelnet_name
 
                 self.model_net_DNN.load_state_dict(torch.load(path_model))
                 self.inv_model_net_DNN.load_state_dict(torch.load(path_invmodel))
+                self.deepdob = DeepDOB(self.inv_model_net_DNN, self.test_env, self.steps_inloop, self.args_tester,
+                                       self.frameskip_inner, self.action_dim, self.max_action, self.min_action)
+                self.mrap = MRAP(self.algorithm.actor, self.model_net_DNN, self.test_env, self.args_tester,
+                                 self.frameskip_origin)
+
             if "BNN" in self.args_tester.modelnet_name:
                 if self.args_tester.prev_result is True:
                     path_model = self.path + "storage/" + args_tester.prev_result_fname + "/saved_net/model/BNN/" + self.args_tester.modelnet_name
@@ -122,6 +124,11 @@ class Model_trainer():
 
                 self.model_net_BNN.load_state_dict(torch.load(path_model))
                 self.inv_model_net_BNN.load_state_dict(torch.load(path_invmodel))
+                self.deepdob = DeepDOB(self.inv_model_net_BNN, self.test_env, self.steps_inloop, self.args_tester,
+                                       self.frameskip_inner, self.action_dim, self.max_action, self.min_action)
+                self.mrap = MRAP(self.algorithm.actor, self.model_net_BNN, self.test_env, self.args_tester,
+                                 self.frameskip_origin)
+
 
     def offline_train(self, d, local_step):
         if d:
@@ -332,7 +339,6 @@ class Model_trainer():
         self.env.close()
 
     def test(self):
-
         self.test_num += 1
         episode = 0
         reward_list = []
@@ -344,71 +350,42 @@ class Model_trainer():
                 break
             episode += 1
             eval_reward = 0
-            state = self.test_env.reset()
+            loss = 0
+
+            if self.args_tester.develop_mode == 'DeepDOB':
+                observation = self.deepdob.reset()
+            else:
+                observation = self.test_env.reset()
 
             if '-ram-' in self.env_name:  # Atari Ram state
-                state = state / 255.
+                observation = observation / 255.
 
             done = False
-            disturbance_pred = torch.tensor(np.zeros(self.action_dim), dtype=torch.float).cuda()
-            model_error = torch.tensor(np.zeros(self.state_dim), dtype=torch.float).cuda()
 
             while not done:
                 self.local_step += 1
-                reward = 0
 
-                action_NN = self.algorithm.eval_action(state)   # policy update 하려면, eval_action 내부의 .cpu().numpy() 제거
-                action_NN_tensor = torch.tensor(action_NN, dtype=torch.float).cuda()
-                env_action_NN = denormalize(action_NN, self.max_action, self.min_action, istest=True)
-                env_action_NN = torch.tensor(env_action_NN, dtype=torch.float).cuda()
-
-                for i in range(self.steps_inloop):
-                    if i == 0:
-                        state_inner = state
-                    # action step
-                    env_action_dob = env_action_NN - disturbance_pred
-                    if self.args_tester.add_noise is True:
-                        env_action_dob = add_noise(env_action_dob, scale=self.args_tester.noise_scale)
-                    if self.args_tester.add_disturbance is True:
-                        env_action_dob = add_disturbance(env_action_dob, self.local_step,
-                                                         self.env.spec.max_episode_steps,
-                                                         scale=self.args_tester.disturbance_scale,
-                                                         frequency=self.args_tester.disturbance_frequency)
-                    # real system
-                    env_action_real_npy = env_action_dob.cpu().detach().numpy()
-                    next_state_inner, reward_inner, done, _ = self.test_env.step(env_action_real_npy, inner_loop=self.steps_inloop)
-                    reward += reward_inner
-
-                    # predict disturbance
-                    state_d = (next_state_inner - state_inner)/self.frameskip
-                    if "DNN" in self.args_tester.modelnet_name:
-                        disturbance_pred = denormalize(self.inv_model_net_DNN(state_d, next_state_inner) - action_NN_tensor, self.max_action, self.min_action, istest=True)
-                    if "BNN" in self.args_tester.modelnet_name:
-                        disturbance_pred = denormalize(self.inv_model_net_BNN(state_d, next_state_inner) - action_NN_tensor, self.max_action, self.min_action, istest=True)
-
-                    # predict system model
-                    if i == self.steps_inloop-1:
-
-                        if "DNN" in self.args_tester.modelnet_name:
-                            state_d_pred = self.model_net_DNN(state_inner, normalize(env_action_dob, self.max_action, self.min_action, istest=True))
-                        if "BNN" in self.args_tester.modelnet_name:
-                            state_d_pred = self.model_net_BNN(state_inner, normalize(env_action_dob, self.max_action, self.min_action, istest=True))
-                        model_error = torch.tensor((next_state_inner - state_inner), dtype=torch.float).cuda()\
-                                      - state_d_pred*self.frameskip
-
-                    state_inner = next_state_inner
-
-                remain_frameskip = self.test_env.env.frame_skip%self.args_tester.frameskip_inner
-                if remain_frameskip != 0:
-                    self.test_env.env.do_simulation(action_NN, remain_frameskip)
-                    next_state = self.test_env.env._get_obs()
+                if self.args_tester.develop_mode == 'MRAP':
+                    action = self.mrap.eval_action(observation)
+                    env_action = denormalize(action, self.max_action, self.min_action, istest=True).cpu().detach().numpy()
                 else:
-                    next_state = state_inner
+                    action = self.algorithm.eval_action(observation)   # policy update 하려면, eval_action 내부의 .cpu().numpy() 제거
+                    env_action = denormalize(action, self.max_action, self.min_action, istest=True)
 
-                # if "DNN" in self.args_tester.modelnet_name:
-                #     self.inv_model_net_DNN.adaptive_train(model_error)
-                # if "BNN" in self.args_tester.modelnet_name:
-                #     self.inv_model_net_BNN.adaptive_train(model_error)
+                if self.args_tester.develop_mode == 'DeepDOB':
+                    next_observation, reward, done, _ = self.deepdob.step(env_action, self.local_step)
+                else:
+                    if self.args_tester.add_noise is True:
+                        env_action = add_noise(env_action, scale=self.args_tester.noise_scale)
+                    if self.args_tester.add_disturbance is True:
+                        env_action = add_disturbance(env_action, self.local_step,
+                                                     self.env.spec.max_episode_steps,
+                                                     scale=self.args_tester.disturbance_scale,
+                                                     frequency=self.args_tester.disturbance_frequency)
+                    next_observation, reward, done, _ = self.test_env.step(env_action)
+
+                if self.args_tester.develop_mode == 'MRAP':
+                    loss += self.mrap.eval_error(observation, action, next_observation)
 
                 if self.render == True:
                     if self.domain_type in {'gym', "atari"}:
@@ -420,14 +397,15 @@ class Model_trainer():
                         cv2.imshow("{}_{}_{}".format(self.algorithm.name, self.domain_type, self.env_name), self.env.render(mode='rgb_array', height=240, width=320))
                         cv2.waitKey(1)
 
-                eval_reward += reward/self.steps_inloop
-                state = next_state
+                eval_reward += reward
+                observation = next_observation
 
                 if self.local_step == self.env.spec.max_episode_steps:
                     # print(episode, "th pos :", state[0:7])
                     alive_cnt += 1
 
             reward_list.append(eval_reward)
+            print("loss:", loss/self.local_step)
 
         print(
             "Eval  | Average Reward {:.2f}, Max reward: {:.2f}, Min reward: {:.2f}, Stddev reward: {:.2f}, alive rate : {:.2f}".format(

@@ -10,16 +10,6 @@ from torchbnn.utils import freeze, unfreeze
 from Network.Gaussian_Actor import Squashed_Gaussian_Actor
 from Common.Utils import weight_init
 
-def OutlayerOptimizer(actor, error):
-    outlayer_optimizer = optim.Adam(actor.network_outer.parameters(), lr= 0.001)
-
-    loss = F.mse_loss(input = error, target=torch.tensor(0.0, dtype=torch.float).cuda())
-    print(loss)
-
-    outlayer_optimizer.zero_grad()
-    loss.backward()
-    outlayer_optimizer.step()
-
 class DynamicsNetwork(nn.Module):
     def __init__(self, state_dim, action_dim, frameskip, algorithm, args, net_type=None, hidden_dim=(256, 256)):
         super(DynamicsNetwork, self).__init__()
@@ -150,7 +140,6 @@ class DynamicsNetwork(nn.Module):
 
 class InverseDynamicsNetwork(nn.Module):
     def __init__(self, state_dim, action_dim,
-                 max_action, min_action,
                  frameskip, algorithm,
                  args, net_type=None, hidden_dim=(256, 256)):
         super(InverseDynamicsNetwork, self).__init__()
@@ -162,8 +151,6 @@ class InverseDynamicsNetwork(nn.Module):
 
         self.state_dim = state_dim
         self.action_dim = action_dim
-        self.max_action = torch.tensor(max_action, dtype=torch.float)
-        self.min_action = torch.tensor(min_action, dtype=torch.float)
         self.frameskip = frameskip
 
         self.args = args

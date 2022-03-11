@@ -1,3 +1,4 @@
+import numpy
 import numpy as np
 import pandas as pd
 import gym
@@ -88,7 +89,15 @@ def denormalize(input, act_max, act_min, istest = False):
 
     denormal_bias = (act_max + act_min) / 2
     input = input @ denormal_mat + denormal_bias
+
     return input
+
+def inv_softsign(y):
+    if type(y) is torch.Tensor:
+        y = y.cpu().detach().numpy()
+
+    x = np.where(y >= 0, y/(1-y), y/(1+y))
+    return x
 
 def add_noise(action, scale = 0.1):
     for i in range(len(action)):
@@ -126,7 +135,7 @@ def put_path(obs):
 
 def plot_data(obs, label=None):
     global data
-    print(data)
+    # print(data)
     if data is None:
         data = obs
     else:

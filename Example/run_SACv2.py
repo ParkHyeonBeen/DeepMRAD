@@ -70,7 +70,7 @@ def hyperparameters():
     parser.add_argument('--model-lr', default=0.001, type=float)
     parser.add_argument('--model-kl-weight', default=0.05, type=float)
     parser.add_argument('--inv-model-lr', default=0.001, type=float)
-    parser.add_argument('--inv-model-kl-weight', default=0.1, type=float)
+    parser.add_argument('--inv-model-kl-weight', default=0.5, type=float)
 
     # save path
     parser.add_argument('--path', default="X:/env_mbrl/Results/Result/", help='path for save')
