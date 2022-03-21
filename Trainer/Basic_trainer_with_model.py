@@ -7,6 +7,7 @@ import torch
 from Common.Utils import *
 from Common.DeepDOB import DeepDOB
 from Common.MRAP import MRAP
+from Common.Ensemble import Ensemble
 
 from Network.Model_Network import *
 
@@ -72,14 +73,13 @@ class Model_trainer():
         self.steptime = self.env.env.dt
         self.steptime_xml = (self.steptime / self.env.env.frame_skip)
         self.frameskip = self.test_env.env.frame_skip
-        self.frameskip_inner = self.args_tester.frameskip_inner
         self.frameskip_origin = self.test_env.env.frame_skip_origin
 
         if self.args_tester is None:
             self.render = self.args.render
             self.path = self.args.path
-
         else:
+            self.frameskip_inner = self.args_tester.frameskip_inner
             self.steps_inloop = self.test_env.env.frame_skip_origin//self.frameskip
             self.render = self.args_tester.render
             self.path = self.args_tester.path
@@ -91,12 +91,28 @@ class Model_trainer():
         self.model_net_DNN = DynamicsNetwork(self.state_dim, self.action_dim, self.frameskip, self.algorithm, self.args, net_type="DNN")
         self.model_net_BNN = DynamicsNetwork(self.state_dim, self.action_dim, self.frameskip, self.algorithm, self.args, net_type="BNN")
 
+        self.ensemble_model_DNN = Ensemble(
+            DynamicsNetwork(
+                self.state_dim, self.action_dim, self.frameskip, self.algorithm, self.args, net_type="DNN").dnmsNN)
+        self.ensemble_model_BNN = Ensemble(
+            DynamicsNetwork(
+                self.state_dim, self.action_dim, self.frameskip, self.algorithm, self.args, net_type="BNN").dnmsNN)
+
         self.inv_model_net_DNN = InverseDynamicsNetwork(self.state_dim, self.action_dim,
                                                         self.frameskip, self.algorithm,
                                                         self.args, net_type="DNN")
         self.inv_model_net_BNN = InverseDynamicsNetwork(self.state_dim, self.action_dim,
                                                         self.frameskip, self.algorithm,
                                                         self.args, net_type="BNN")
+
+        self.ensemble_inv_model_DNN = Ensemble(
+            InverseDynamicsNetwork(self.state_dim, self.action_dim,
+                                                        self.frameskip, self.algorithm,
+                                                        self.args, net_type="DNN").inv_dnmsNN)
+        self.ensemble_inv_model_BNN = Ensemble(
+            InverseDynamicsNetwork(self.state_dim, self.action_dim,
+                                                        self.frameskip, self.algorithm,
+                                                        self.args, net_type="BNN").inv_dnmsNN)
 
         if self.args_tester is not None:
             if "DNN" in self.args_tester.modelnet_name:
@@ -154,6 +170,17 @@ class Model_trainer():
 
         eval_cost = np.zeros(4)
 
+        if self.args.ensemble_mode is True:
+            self.ensemble_model_DNN.get_best()
+            self.ensemble_model_BNN.get_best()
+            self.ensemble_inv_model_DNN.get_best()
+            self.ensemble_inv_model_BNN.get_best()
+
+            self.ensemble_model_DNN.put_to_target(self.model_net_DNN.dnmsNN)
+            self.ensemble_model_BNN.put_to_target(self.model_net_BNN.dnmsNN)
+            self.ensemble_inv_model_DNN.put_to_target(self.inv_model_net_DNN.inv_dnmsNN)
+            self.ensemble_inv_model_BNN.put_to_target(self.inv_model_net_BNN.inv_dnmsNN)
+
         while True:
             self.local_step = 0
             eval_cost_temp = np.zeros(4)
@@ -174,10 +201,12 @@ class Model_trainer():
                 env_action = denormalize(action, self.max_action, self.min_action)
 
                 next_observation, reward, done, _ = self.test_env.step(env_action)
-                cost_DNN = self.model_net_DNN.eval_model(observation, action, next_observation)
-                cost_BNN = self.model_net_BNN.eval_model(observation, action, next_observation)
-                cost_invDNN = self.inv_model_net_DNN.eval_model(observation, action, next_observation)
-                cost_invBNN = self.inv_model_net_BNN.eval_model(observation, action, next_observation)
+                cost_DNN, _, _ = self.model_net_DNN.eval_model(observation, action, next_observation)
+                cost_BNN, _, _ = self.model_net_BNN.eval_model(observation, action, next_observation)
+                cost_invDNN, _, _ = self.inv_model_net_DNN.eval_model(observation, action, next_observation)
+                cost_invBNN, _, _ = self.inv_model_net_BNN.eval_model(observation, action, next_observation)
+
+                # print(cost_BNN, cost_invBNN)
 
                 if episode == 1:
                     saveData = np.hstack((cost_DNN, cost_BNN, cost_invDNN, cost_invBNN))
@@ -247,7 +276,7 @@ class Model_trainer():
         print("Eval  | Average Reward: {:.2f}, Max reward: {:.2f}, Min reward: {:.2f}, Stddev reward: {:.2f}, alive rate : {:.2f}"
               .format(sum(reward_list)/len(reward_list), max(reward_list), min(reward_list), np.std(reward_list), 100*alive_rate))
         # print("Cost | DNN: ", eval_cost[0], " BNN: ", eval_cost[1]," invDNN: ", eval_cost[2], " invBNN: ", eval_cost[3])
-        print("Cost  | DNN: {:.7f}, BNN: {:.7f}, invDNN: {:.7f}, inv.BNN: {:.7f} "
+        print("Cost  | DNN: {:.7f}, BNN: {:.7f}, invDNN: {:.7f}, invBNN: {:.7f} "
               .format(eval_cost[0], eval_cost[1], eval_cost[2], eval_cost[3]))
         self.test_env.close()
 
@@ -313,17 +342,24 @@ class Model_trainer():
 
                 if self.total_step >= self.algorithm.training_start and self.train_mode(done, self.local_step):
                     loss_list = self.algorithm.train(self.algorithm.training_step)
-                    loss_mse_DNN, loss_kl_DNN = self.model_net_DNN.train_all(self.algorithm.training_step)
-                    loss_mse_BNN, loss_kl_BNN = self.model_net_BNN.train_all(self.algorithm.training_step)
+                    cost_DNN, mse_DNN, kl_DNN = self.model_net_DNN.train_all(self.algorithm.training_step)
+                    cost_BNN, mse_BNN, kl_BNN = self.model_net_BNN.train_all(self.algorithm.training_step)
 
-                    loss_mse_invDNN, loss_kl_invDNN = self.inv_model_net_DNN.train_all(self.algorithm.training_step)
-                    loss_mse_invBNN, loss_kl_invBNN = self.inv_model_net_BNN.train_all(self.algorithm.training_step)
+                    self.ensemble_model_DNN.add(self.model_net_DNN.dnmsNN, cost_DNN)
+                    self.ensemble_model_BNN.add(self.model_net_BNN.dnmsNN, cost_BNN)
 
-                    saveData = np.hstack((loss_mse_DNN, loss_kl_DNN,
-                                            loss_mse_BNN, loss_kl_BNN,
-                                            loss_mse_invDNN, loss_kl_invDNN,
-                                            loss_mse_invBNN, loss_kl_invBNN))
+                    cost_invDNN, mse_invDNN, kl_invDNN = self.inv_model_net_DNN.train_all(self.algorithm.training_step)
+                    cost_invBNN, mse_invBNN, kl_invBNN = self.inv_model_net_BNN.train_all(self.algorithm.training_step)
+
+                    self.ensemble_inv_model_DNN.add(self.inv_model_net_DNN.inv_dnmsNN, cost_DNN)
+                    self.ensemble_inv_model_BNN.add(self.inv_model_net_BNN.inv_dnmsNN, cost_BNN)
+
+                    saveData = np.hstack((mse_DNN, kl_DNN,
+                                            mse_BNN, kl_BNN,
+                                            mse_invDNN, kl_invDNN,
+                                            mse_invBNN, kl_invBNN))
                     put_data(saveData)
+
 
                 if self.eval is True and self.total_step % self.eval_step == 0:
                     self.evaluate()
@@ -346,6 +382,7 @@ class Model_trainer():
 
         while True:
             self.local_step = 0
+            alive = False
             if episode >= self.test_episode:
                 break
             episode += 1
@@ -403,9 +440,12 @@ class Model_trainer():
                 if self.local_step == self.env.spec.max_episode_steps:
                     # print(episode, "th pos :", state[0:7])
                     alive_cnt += 1
+                    alive = True
 
+            print(
+                "Eval of {}th episode  | Episode Reward {:.2f}, alive : {}".format(episode, eval_reward, alive))
             reward_list.append(eval_reward)
-            print("loss:", loss/self.local_step)
+            # print("loss:", loss/self.local_step)
 
         print(
             "Eval  | Average Reward {:.2f}, Max reward: {:.2f}, Min reward: {:.2f}, Stddev reward: {:.2f}, alive rate : {:.2f}".format(

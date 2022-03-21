@@ -219,6 +219,7 @@ class Basic_trainer():
 
         while True:
             self.local_step = 0
+            alive = False
             if episode >= self.test_episode:
                 break
             episode += 1
@@ -259,11 +260,14 @@ class Basic_trainer():
                 if self.local_step == self.env.spec.max_episode_steps:
                     # print(episode, "th pos :", observation[0:7])
                     alive_cnt += 1
+                    alive = True
 
+            print(
+                "Eval of {}th episode  | Episode Reward {:.2f}, alive : {}".format(episode, eval_reward, alive))
             reward_list.append(eval_reward)
 
         print(
-            "Eval  | Average Reward {:.2f}, Max reward: {:.2f}, Min reward: {:.2f}, Stddev reward: {:.2f}, alive rate : {:.2f}".format(
+            "Eval of all episodes | Average Reward {:.2f}, Max reward: {:.2f}, Min reward: {:.2f}, Stddev reward: {:.2f}, alive rate : {:.2f}".format(
                 sum(reward_list) / len(reward_list), max(reward_list), min(reward_list), np.std(reward_list),
                 100 * (alive_cnt / self.test_episode)))
         self.test_env.close()

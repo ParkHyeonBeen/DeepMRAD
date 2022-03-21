@@ -21,7 +21,8 @@ class Gaussian_Actor(nn.Module):
         for i in range(len(hidden_dim) - 1):
             self.network.append(nn.Linear(hidden_dim[i], hidden_dim[i + 1]))
             self.network.append(nn.ReLU())
-        self.network.append(nn.Linear(hidden_dim[-1], action_dim * 2))
+        self.network_outer = nn.Linear(hidden_dim[-1], action_dim * 2)
+        self.network = self.network_inner.append(self.network_outer)
 
         self.apply(weight_init)
 

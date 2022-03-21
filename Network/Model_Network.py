@@ -79,6 +79,7 @@ class DynamicsNetwork(nn.Module):
         return z
 
     def train_all(self, training_num):
+        cost = 0.0
         mse = 0.0
         kl = 0.0
 
@@ -98,9 +99,10 @@ class DynamicsNetwork(nn.Module):
             self.dnms_optimizer.step()
         # self.scheduler.step()
 
+        cost = cost.cpu().detach().numpy()
         mse = mse.cpu().detach().numpy()
         kl = kl.cpu().detach().numpy()
-        return mse, kl
+        return cost, mse, kl
 
     def adaptive_train(self, error):
         loss = F.mse_loss(input = error, target=torch.tensor(0.0, dtype=torch.float).cuda())
@@ -118,6 +120,8 @@ class DynamicsNetwork(nn.Module):
         # print("state", state, "action", action, "next state", next_state, "state dif", state_d)
 
         cost = 0.0
+        mse = 0.0
+        kl = 0.0
 
         if self.net_type == "DNN":
             z = self.forward(state, action)
@@ -136,7 +140,9 @@ class DynamicsNetwork(nn.Module):
             unfreeze(self.dnmsNN)
 
         cost = cost.cpu().detach().numpy()
-        return cost
+        mse = mse.cpu().detach().numpy()
+        kl = kl.cpu().detach().numpy()
+        return cost, mse, kl
 
 class InverseDynamicsNetwork(nn.Module):
     def __init__(self, state_dim, action_dim,
@@ -209,6 +215,7 @@ class InverseDynamicsNetwork(nn.Module):
         return z
 
     def train_all(self, training_num):
+        cost = 0.0
         mse = 0.0
         kl = 0.0
 
@@ -227,9 +234,10 @@ class InverseDynamicsNetwork(nn.Module):
             self.inv_dnms_optimizer.step()
         # self.scheduler.step()
 
+        cost = cost.cpu().detach().numpy()
         mse = mse.cpu().detach().numpy()
         kl = kl.cpu().detach().numpy()
-        return mse, kl
+        return cost, mse, kl
 
     def adaptive_train(self, error):
         loss = F.mse_loss(input = error, target=torch.tensor(0.0, dtype=torch.float).cuda())
@@ -246,6 +254,8 @@ class InverseDynamicsNetwork(nn.Module):
         state_d = (next_state - state)/self.frameskip
         # print("state", state, "action", action, "next state", next_state, "state dif", state_d)
         cost = 0.0
+        mse = 0.0
+        kl = 0.0
 
         if self.net_type == "DNN":
             state_d = F.softsign(state_d)
@@ -266,7 +276,9 @@ class InverseDynamicsNetwork(nn.Module):
             unfreeze(self.inv_dnmsNN)
 
         cost = cost.cpu().detach().numpy()
-        return cost
+        mse = mse.cpu().detach().numpy()
+        kl = kl.cpu().detach().numpy()
+        return cost, mse, kl
 
 if __name__ == '__main__':
     pass
