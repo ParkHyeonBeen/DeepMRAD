@@ -34,7 +34,6 @@ class Ensemble:
         self._select_bests()
         for selected in self.ensemble_list:
             model, cost = selected
-            print(cost)
             self._put_to_model(model)
 
         return self.model_ensemble

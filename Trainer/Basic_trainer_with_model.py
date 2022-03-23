@@ -1,13 +1,9 @@
-import math, random, time
-import numpy as np
-
 import cv2
-import torch
 
 from Common.Utils import *
 from Common.DeepDOB import DeepDOB
 from Common.MRAP import MRAP
-from Common.Ensemble import Ensemble
+from Common.Ensemble_model import Ensemble
 
 from Network.Model_Network import *
 
@@ -88,31 +84,31 @@ class Model_trainer():
         self.deepdob = None
         self.mrap = None
 
-        self.model_net_DNN = DynamicsNetwork(self.state_dim, self.action_dim, self.frameskip, self.algorithm, self.args, net_type="DNN")
-        self.model_net_BNN = DynamicsNetwork(self.state_dim, self.action_dim, self.frameskip, self.algorithm, self.args, net_type="BNN")
+        if self.args.ensemble_mode is True:
+            self.model_net_DNN = Ensemble(DynamicsNetwork(self.state_dim, self.action_dim, self.frameskip,
+                                                          self.algorithm, self.args, net_type="DNN"))
+            self.model_net_BNN = Ensemble(DynamicsNetwork(self.state_dim, self.action_dim, self.frameskip,
+                                                          self.algorithm, self.args, net_type="BNN"))
 
-        self.ensemble_model_DNN = Ensemble(
-            DynamicsNetwork(
-                self.state_dim, self.action_dim, self.frameskip, self.algorithm, self.args, net_type="DNN").dnmsNN)
-        self.ensemble_model_BNN = Ensemble(
-            DynamicsNetwork(
-                self.state_dim, self.action_dim, self.frameskip, self.algorithm, self.args, net_type="BNN").dnmsNN)
+            self.inv_model_net_DNN = Ensemble(InverseDynamicsNetwork(self.state_dim, self.action_dim,
+                                                            self.frameskip, self.algorithm,
+                                                            self.args, net_type="DNN"))
+            self.inv_model_net_BNN = Ensemble(InverseDynamicsNetwork(self.state_dim, self.action_dim,
+                                                            self.frameskip, self.algorithm,
+                                                            self.args, net_type="BNN"))
+        else:
+            self.model_net_DNN = DynamicsNetwork(self.state_dim, self.action_dim, self.frameskip, self.algorithm,
+                                                 self.args, net_type="DNN")
+            self.model_net_BNN = DynamicsNetwork(self.state_dim, self.action_dim, self.frameskip, self.algorithm,
+                                                 self.args, net_type="BNN")
 
-        self.inv_model_net_DNN = InverseDynamicsNetwork(self.state_dim, self.action_dim,
-                                                        self.frameskip, self.algorithm,
-                                                        self.args, net_type="DNN")
-        self.inv_model_net_BNN = InverseDynamicsNetwork(self.state_dim, self.action_dim,
-                                                        self.frameskip, self.algorithm,
-                                                        self.args, net_type="BNN")
+            self.inv_model_net_DNN = InverseDynamicsNetwork(self.state_dim, self.action_dim,
+                                                            self.frameskip, self.algorithm,
+                                                            self.args, net_type="DNN")
+            self.inv_model_net_BNN = InverseDynamicsNetwork(self.state_dim, self.action_dim,
+                                                            self.frameskip, self.algorithm,
+                                                            self.args, net_type="BNN")
 
-        self.ensemble_inv_model_DNN = Ensemble(
-            InverseDynamicsNetwork(self.state_dim, self.action_dim,
-                                                        self.frameskip, self.algorithm,
-                                                        self.args, net_type="DNN").inv_dnmsNN)
-        self.ensemble_inv_model_BNN = Ensemble(
-            InverseDynamicsNetwork(self.state_dim, self.action_dim,
-                                                        self.frameskip, self.algorithm,
-                                                        self.args, net_type="BNN").inv_dnmsNN)
 
         if self.args_tester is not None:
             if "DNN" in self.args_tester.modelnet_name:
@@ -169,17 +165,6 @@ class Model_trainer():
         alive_cnt = 0
 
         eval_cost = np.zeros(4)
-
-        if self.args.ensemble_mode is True:
-            self.ensemble_model_DNN.get_best()
-            self.ensemble_model_BNN.get_best()
-            self.ensemble_inv_model_DNN.get_best()
-            self.ensemble_inv_model_BNN.get_best()
-
-            self.ensemble_model_DNN.put_to_target(self.model_net_DNN.dnmsNN)
-            self.ensemble_model_BNN.put_to_target(self.model_net_BNN.dnmsNN)
-            self.ensemble_inv_model_DNN.put_to_target(self.inv_model_net_DNN.inv_dnmsNN)
-            self.ensemble_inv_model_BNN.put_to_target(self.inv_model_net_BNN.inv_dnmsNN)
 
         while True:
             self.local_step = 0
@@ -257,18 +242,30 @@ class Model_trainer():
             sava_network(self.algorithm.actor, "policy_best", self.path)
             self.best_score = score_now*alive_rate
 
-        if self.cost[0] > eval_cost[0]:
+        # if self.cost[0] > eval_cost[0]:
+        if self.args.ensemble_mode is True:
+            self.model_net_DNN.save_ensemble("modelDNN_better", self.path)
+        else:
             sava_network(self.model_net_DNN, "modelDNN_better", self.path)
-            self.cost[0] = eval_cost[0]
-        if self.cost[1] > eval_cost[1]:
+            # self.cost[0] = eval_cost[0]
+        # if self.cost[1] > eval_cost[1]:
+        if self.args.ensemble_mode is True:
+            self.model_net_BNN.save_ensemble("modelBNN_better", self.path)
+        else:
             sava_network(self.model_net_BNN, "modelBNN_better", self.path)
-            self.cost[1] = eval_cost[1]
-        if self.cost[2] > eval_cost[2]:
+        #     self.cost[1] = eval_cost[1]
+        # if self.cost[2] > eval_cost[2]:
+        if self.args.ensemble_mode is True:
+            self.inv_model_net_DNN.save_ensemble("invmodelDNN_better", self.path)
+        else:
             sava_network(self.inv_model_net_DNN, "invmodelDNN_better", self.path)
-            self.cost[2] = eval_cost[2]
-        if self.cost[3] > eval_cost[3]:
+        #     self.cost[2] = eval_cost[2]
+        # if self.cost[3] > eval_cost[3]:
+        if self.args.ensemble_mode is True:
+            self.inv_model_net_BNN.save_ensemble("invmodelBNN_better", self.path)
+        else:
             sava_network(self.inv_model_net_BNN, "invmodelBNN_better", self.path)
-            self.cost[3] = eval_cost[3]
+            # self.cost[3] = eval_cost[3]
 
         save_data(self.path, "saved_log/Eval_" + str(self.total_step // self.eval_step))
         init_data()
@@ -345,14 +342,8 @@ class Model_trainer():
                     cost_DNN, mse_DNN, kl_DNN = self.model_net_DNN.train_all(self.algorithm.training_step)
                     cost_BNN, mse_BNN, kl_BNN = self.model_net_BNN.train_all(self.algorithm.training_step)
 
-                    self.ensemble_model_DNN.add(self.model_net_DNN.dnmsNN, cost_DNN)
-                    self.ensemble_model_BNN.add(self.model_net_BNN.dnmsNN, cost_BNN)
-
                     cost_invDNN, mse_invDNN, kl_invDNN = self.inv_model_net_DNN.train_all(self.algorithm.training_step)
                     cost_invBNN, mse_invBNN, kl_invBNN = self.inv_model_net_BNN.train_all(self.algorithm.training_step)
-
-                    self.ensemble_inv_model_DNN.add(self.inv_model_net_DNN.inv_dnmsNN, cost_DNN)
-                    self.ensemble_inv_model_BNN.add(self.inv_model_net_BNN.inv_dnmsNN, cost_BNN)
 
                     saveData = np.hstack((mse_DNN, kl_DNN,
                                             mse_BNN, kl_BNN,

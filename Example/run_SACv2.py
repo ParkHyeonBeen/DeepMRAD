@@ -18,14 +18,14 @@ def hyperparameters():
 
     #environment
     parser.add_argument('--domain-type', default='gym', type=str, help='gym or dmc, dmc/image')
-    parser.add_argument('--env-name', default='HalfCheetah-v3', help='Pendulum-v0, MountainCarContinuous-v0')
+    parser.add_argument('--env-name', default='Walker2d-v3', help='Pendulum-v0, MountainCarContinuous-v0')
     parser.add_argument('--discrete', default=False, type=bool, help='Always Continuous')
     parser.add_argument('--render', default=False, type=bool)
     parser.add_argument('--training-start', default=1000, type=int, help='First step to start training')
     parser.add_argument('--max-step', default=2000001, type=int, help='Maximum training step')
     parser.add_argument('--eval', default=True, type=bool, help='whether to perform evaluation')
-    parser.add_argument('--eval-step', default=2000, type=int, help='Frequency in performance evaluation')
-    parser.add_argument('--eval-episode', default=5, type=int, help='Number of episodes to perform evaluation')
+    parser.add_argument('--eval-step', default=10000, type=int, help='Frequency in performance evaluation')
+    parser.add_argument('--eval-episode', default=1, type=int, help='Number of episodes to perform evaluation')
     parser.add_argument('--random-seed', default=-1, type=int, help='Random seed setting')
     #sac
     parser.add_argument('--batch-size', default=256, type=int, help='Mini-batch size')

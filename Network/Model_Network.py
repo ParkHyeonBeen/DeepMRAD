@@ -7,11 +7,12 @@ from torch.optim import lr_scheduler
 import torchbnn as bnn
 from torchbnn.utils import freeze, unfreeze
 
-from Network.Gaussian_Actor import Squashed_Gaussian_Actor
+import collections
 from Common.Utils import weight_init
 
 class DynamicsNetwork(nn.Module):
-    def __init__(self, state_dim, action_dim, frameskip, algorithm, args, net_type=None, hidden_dim=(256, 256)):
+    def __init__(self, state_dim, action_dim, frameskip, algorithm, args,
+                 net_type=None, hidden_dim=(256, 256)):
         super(DynamicsNetwork, self).__init__()
 
         if net_type is None:
@@ -86,10 +87,10 @@ class DynamicsNetwork(nn.Module):
         for i in range(training_num):
 
             s, a, _, ns, _ = self.buffer.sample(self.batch_size)
+            s_d = (ns - s) / self.frameskip
+            s_d = F.softsign(s_d)
 
             z = self.forward(s, a, train=True)
-            s_d = (ns - s)/self.frameskip
-            s_d = F.softsign(s_d)
             mse = self.mse_loss(z, s_d)
             kl = self.kl_loss(self.dnmsNN)
             cost = mse + self.kl_weight * kl
@@ -103,13 +104,6 @@ class DynamicsNetwork(nn.Module):
         mse = mse.cpu().detach().numpy()
         kl = kl.cpu().detach().numpy()
         return cost, mse, kl
-
-    def adaptive_train(self, error):
-        loss = F.mse_loss(input = error, target=torch.tensor(0.0, dtype=torch.float).cuda())
-
-        self.dnms_out_optimizer.zero_grad()
-        loss.backward()
-        self.dnms_out_optimizer.step()
 
     def eval_model(self, state, action, next_state):
 
@@ -239,12 +233,6 @@ class InverseDynamicsNetwork(nn.Module):
         kl = kl.cpu().detach().numpy()
         return cost, mse, kl
 
-    def adaptive_train(self, error):
-        loss = F.mse_loss(input = error, target=torch.tensor(0.0, dtype=torch.float).cuda())
-
-        self.inv_dnms_out_optimizer.zero_grad()
-        loss.backward()
-        self.inv_dnms_out_optimizer.step()
 
     def eval_model(self, state, action, next_state):
 
@@ -258,8 +246,6 @@ class InverseDynamicsNetwork(nn.Module):
         kl = 0.0
 
         if self.net_type == "DNN":
-            state_d = F.softsign(state_d)
-            next_state = F.softsign(next_state)
             z = self.forward(state_d, next_state)
             mse = self.mse_loss(z, action)
             kl = self.kl_loss(self.inv_dnmsNN)
@@ -267,8 +253,6 @@ class InverseDynamicsNetwork(nn.Module):
 
         if self.net_type == "BNN":
             freeze(self.inv_dnmsNN)
-            state_d = F.softsign(state_d)
-            next_state = F.softsign(next_state)
             z = self.forward(state_d, next_state)
             mse = self.mse_loss(z, action)
             kl = self.kl_loss(self.inv_dnmsNN)
@@ -279,6 +263,7 @@ class InverseDynamicsNetwork(nn.Module):
         mse = mse.cpu().detach().numpy()
         kl = kl.cpu().detach().numpy()
         return cost, mse, kl
+
 
 if __name__ == '__main__':
     pass

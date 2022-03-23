@@ -1,9 +1,6 @@
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
-from Common.Utils import weight_init
-from Common.Ensemble import Ensemble
-import collections, random
+from Common.Ensemble_model import Ensemble
+from Network.Model_Network import *
+
 
 class model(nn.Module):
     def __init__(self, state_dim=1, action_dim=1, hidden_dim=(10, 10), init = False):
@@ -21,22 +18,31 @@ class model(nn.Module):
                     layer.weight.data.fill_(0.0)
                     layer.bias.data.fill_(0.0)
 
-esb = Ensemble(model().model3)
+        self.apply(weight_init)
 
-for layer in esb.model_ensemble:
-    if not isinstance(layer, nn.ReLU):
-        print(layer.weight.data)
-        print(layer.bias.data)
 
-models = []
+esb = Ensemble(model)
 
-for i in range(1000):
-    _model = model().model3
-    models.append(_model)
-    esb.add(_model, random.random())
+# for layer in esb.model_ensemble:
+#     if not isinstance(layer, nn.ReLU):
+#         print(layer.weight.data)
+#         print(layer.bias.data)
 
-model_ensemble = esb.get_best()
+# models = []
+#
+# for i in range(5):
+#     _model = model().model3
+#     # print(_model[0].weight.data)
+#     models.append(_model)
+#     # esb.add(_model, random.random())
 
-for i, layer in enumerate(model_ensemble):
-    if not isinstance(layer, nn.ReLU):
-        print(layer.weight.data)
+for model in esb.model_batch:
+    print(model.model3[0].weight.data)
+
+esb.train_all(5)
+
+# model_ensemble = esb.get_best()
+
+# for i, layer in enumerate(model_ensemble):
+#     if not isinstance(layer, nn.ReLU):
+#         print(layer.weight.data)
