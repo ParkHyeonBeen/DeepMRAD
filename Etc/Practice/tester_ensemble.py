@@ -21,7 +21,7 @@ class model(nn.Module):
         self.apply(weight_init)
 
 
-esb = Ensemble(model)
+# esb = Ensemble(model)
 
 # for layer in esb.model_ensemble:
 #     if not isinstance(layer, nn.ReLU):
@@ -36,10 +36,12 @@ esb = Ensemble(model)
 #     models.append(_model)
 #     # esb.add(_model, random.random())
 
-for model in esb.model_batch:
-    print(model.model3[0].weight.data)
+def A(a, b, *models):
+    for model in models:
+        print(model)
+    print(a, b)
 
-esb.train_all(5)
+A(1, 2, 1, 553, 4, 5)
 
 # model_ensemble = esb.get_best()
 

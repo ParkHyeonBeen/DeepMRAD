@@ -7,12 +7,12 @@ def hyperparameters():
 
     parser.add_argument('--watch-cost', default=True, type=bool, help='if you wanna watch cost graph, True')
     parser.add_argument('--watch-reward', default=False, type=bool, help='if you wanna watch reward graph, True')
-    parser.add_argument('--is-eval', default=True, type=bool, help='whether at evaluation or training')
+    parser.add_argument('--is-eval', default=False, type=bool, help='whether at evaluation or training')
 
     parser.add_argument('--data-type', default="normal", type=str, help="normal, path")
     parser.add_argument('--file-type', default=".csv", type=str, help=".csv, .npy")
-    parser.add_argument('--start-index', default=1, type=int, help='start index of plot to be viewed')
-    parser.add_argument('--data-index', default=4, type=int, help='data index to be viewed')
+    parser.add_argument('--start-index', default=2, type=int, help='start index of plot to be viewed')
+    parser.add_argument('--data-index', default=7, type=int, help='data index to be viewed')
 
     parser.add_argument('--path', default="X:/env_mbrl/Results/", help='path of saved data')
     parser.add_argument('--prev-result', default=False, type=bool, help='if previous result, True')

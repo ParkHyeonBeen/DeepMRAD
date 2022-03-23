@@ -180,18 +180,16 @@ def save_path(path, fname, numpy=False):
         df = np.array(path_data)
         np.save(path + fname + ".npy", df)
 
-def sava_network(network, fname : str, root : str):
-    if "policy" in fname:
-        torch.save(network.state_dict(), root + "saved_net/policy/" + fname)
-    elif "model" in fname:
-        if "DNN" in fname:
-            torch.save(network.state_dict(), root + "saved_net/model/DNN/" + fname)
-        elif "BNN" in fname:
-            torch.save(network.state_dict(), root + "saved_net/model/BNN/" + fname)
-        else:
-            torch.save(network.state_dict(), root + "saved_net/model/Etc/" + fname)
+def save_policys(policy, score, score_now, alive_rate, path):
+
+    if score_now > score:
+        torch.save(policy.actor.state_dict(), path + "saved_net/policy/policy_better")
+        return score_now
+    elif score_now > score and alive_rate > 0.9:
+        torch.save(policy.actor.state_dict(), path + "saved_net/policy/policy_best")
+        return score_now
     else:
-        raise Exception(" check your file name ")
+        torch.save(policy.actor.state_dict(), path + "saved_net/policy/policy_current")
 
 ## related to gym
 

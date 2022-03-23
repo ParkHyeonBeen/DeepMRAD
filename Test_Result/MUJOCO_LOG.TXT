@@ -1,3 +1,0 @@
-Thu Nov 25 19:28:11 2021
-ERROR: Could not allocate offscreen framebuffer
-

@@ -48,11 +48,6 @@ class PixelEncoder(nn.Module):
 
         return z
 
-
-
-
-
-
 if __name__ == '__main__':
     a = PixelEncoder((3, 84, 84), 50, layer_num=4)
     # import numpy as np

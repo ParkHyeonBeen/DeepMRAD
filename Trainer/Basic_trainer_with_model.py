@@ -1,6 +1,7 @@
 import cv2
 
 from Common.Utils import *
+from Common.Utils_model import *
 from Common.DeepDOB import DeepDOB
 from Common.MRAP import MRAP
 from Common.Ensemble_model import Ensemble
@@ -84,63 +85,26 @@ class Model_trainer():
         self.deepdob = None
         self.mrap = None
 
-        if self.args.ensemble_mode is True:
-            self.model_net_DNN = Ensemble(DynamicsNetwork(self.state_dim, self.action_dim, self.frameskip,
-                                                          self.algorithm, self.args, net_type="DNN"))
-            self.model_net_BNN = Ensemble(DynamicsNetwork(self.state_dim, self.action_dim, self.frameskip,
-                                                          self.algorithm, self.args, net_type="BNN"))
-
-            self.inv_model_net_DNN = Ensemble(InverseDynamicsNetwork(self.state_dim, self.action_dim,
-                                                            self.frameskip, self.algorithm,
-                                                            self.args, net_type="DNN"))
-            self.inv_model_net_BNN = Ensemble(InverseDynamicsNetwork(self.state_dim, self.action_dim,
-                                                            self.frameskip, self.algorithm,
-                                                            self.args, net_type="BNN"))
-        else:
-            self.model_net_DNN = DynamicsNetwork(self.state_dim, self.action_dim, self.frameskip, self.algorithm,
-                                                 self.args, net_type="DNN")
-            self.model_net_BNN = DynamicsNetwork(self.state_dim, self.action_dim, self.frameskip, self.algorithm,
-                                                 self.args, net_type="BNN")
-
-            self.inv_model_net_DNN = InverseDynamicsNetwork(self.state_dim, self.action_dim,
-                                                            self.frameskip, self.algorithm,
-                                                            self.args, net_type="DNN")
-            self.inv_model_net_BNN = InverseDynamicsNetwork(self.state_dim, self.action_dim,
-                                                            self.frameskip, self.algorithm,
-                                                            self.args, net_type="BNN")
-
-
+        # For Testing
         if self.args_tester is not None:
-            if "DNN" in self.args_tester.modelnet_name:
-                if self.args_tester.prev_result is True:
-                    path_model = self.path + "storage/" + args_tester.prev_result_fname + "/saved_net/model/DNN/" + self.args_tester.modelnet_name
-                    path_invmodel = self.path + "storage/" + args_tester.prev_result_fname + "/saved_net/model/DNN/inv" + self.args_tester.modelnet_name
-                else:
-                    path_model = self.path + self.args_tester.result_index + "saved_net/model/DNN/" + self.args_tester.modelnet_name
-                    path_invmodel = self.path + self.args_tester.result_index + "saved_net/model/DNN/inv" + self.args_tester.modelnet_name
+            if "DNN" in args_tester.modelnet_name:
+                self.model_net, self.inv_model_net = \
+                    create_models(self.state_dim, self.action_dim, self.frameskip, self.algorithm, self.args, bnn=False)
+            elif "BNN" in args_tester.modelnet_name:
+                self.model_net, self.inv_model_net = \
+                    create_models(self.state_dim, self.action_dim, self.frameskip, self.algorithm, self.args, dnn=False)
+            load_models(args_tester, self.model_net, self.inv_model_net)
 
-                self.model_net_DNN.load_state_dict(torch.load(path_model))
-                self.inv_model_net_DNN.load_state_dict(torch.load(path_invmodel))
-                self.deepdob = DeepDOB(self.inv_model_net_DNN, self.test_env, self.steps_inloop, self.args_tester,
+            if self.args_tester.develop_mode == 'DeepDOB':
+                self.deepdob = DeepDOB(self.inv_model_net, self.test_env, self.steps_inloop, self.args_tester,
                                        self.frameskip_inner, self.action_dim, self.max_action, self.min_action)
-                self.mrap = MRAP(self.algorithm.actor, self.model_net_DNN, self.test_env, self.args_tester,
-                                 self.frameskip_origin)
-
-            if "BNN" in self.args_tester.modelnet_name:
-                if self.args_tester.prev_result is True:
-                    path_model = self.path + "storage/" + args_tester.prev_result_fname + "/saved_net/model/BNN/" + self.args_tester.modelnet_name
-                    path_invmodel = self.path + "storage/" + args_tester.prev_result_fname + "/saved_net/model/BNN/inv" + self.args_tester.modelnet_name
-                else:
-                    path_model = self.path + "saved_net/model/BNN/" + self.args_tester.modelnet_name
-                    path_invmodel = self.path + "saved_net/model/BNN/inv" + self.args_tester.modelnet_name
-
-                self.model_net_BNN.load_state_dict(torch.load(path_model))
-                self.inv_model_net_BNN.load_state_dict(torch.load(path_invmodel))
-                self.deepdob = DeepDOB(self.inv_model_net_BNN, self.test_env, self.steps_inloop, self.args_tester,
-                                       self.frameskip_inner, self.action_dim, self.max_action, self.min_action)
-                self.mrap = MRAP(self.algorithm.actor, self.model_net_BNN, self.test_env, self.args_tester,
-                                 self.frameskip_origin)
-
+            if self.args_tester.develop_mode == 'MRAP':
+                self.mrap = MRAP(self.algorithm.actor, self.model_net, self.test_env,
+                                 self.args_tester, self.frameskip_origin)
+        # For training
+        else:
+            self.model_net_DNN, self.model_net_BNN, self.inv_model_net_DNN, self.inv_model_net_BNN = \
+                create_models(self.state_dim, self.action_dim, self.frameskip, self.algorithm, self.args)
 
     def offline_train(self, d, local_step):
         if d:
@@ -186,16 +150,12 @@ class Model_trainer():
                 env_action = denormalize(action, self.max_action, self.min_action)
 
                 next_observation, reward, done, _ = self.test_env.step(env_action)
-                cost_DNN, _, _ = self.model_net_DNN.eval_model(observation, action, next_observation)
-                cost_BNN, _, _ = self.model_net_BNN.eval_model(observation, action, next_observation)
-                cost_invDNN, _, _ = self.inv_model_net_DNN.eval_model(observation, action, next_observation)
-                cost_invBNN, _, _ = self.inv_model_net_BNN.eval_model(observation, action, next_observation)
 
-                # print(cost_BNN, cost_invBNN)
-
+                _, mse_list, _ = eval_models(observation, action, next_observation,
+                                              self.model_net_DNN, self.model_net_BNN,
+                                              self.inv_model_net_DNN, self.inv_model_net_BNN)
                 if episode == 1:
-                    saveData = np.hstack((cost_DNN, cost_BNN, cost_invDNN, cost_invBNN))
-                    put_data(saveData)
+                    put_data(mse_list)
 
                 if self.render == True:
                     if self.domain_type in {'gym', "atari"}:
@@ -208,10 +168,7 @@ class Model_trainer():
                         cv2.waitKey(1)
 
                 eval_reward += reward
-                eval_cost_temp[0] += cost_DNN
-                eval_cost_temp[1] += cost_BNN
-                eval_cost_temp[2] += cost_invDNN
-                eval_cost_temp[3] += cost_invBNN
+                eval_cost_temp += mse_list
                 observation = next_observation
 
                 if self.local_step == self.env.spec.max_episode_steps:
@@ -226,46 +183,18 @@ class Model_trainer():
 
         if self.eval_num == 1:
             self.score = score_now
-            self.total_score = score_now*alive_rate
-            self.best_score = score_now*alive_rate
             self.cost = eval_cost
 
-        if score_now > self.score:
-            sava_network(self.algorithm.actor, "policy_better", self.path)
-            self.score = score_now
-        if alive_rate > 0.9:
-            sava_network(self.algorithm.actor, "policy_current", self.path)
-        if alive_cnt != 0 and score_now*alive_rate > self.total_score:
-            sava_network(self.algorithm.actor, "policy_total", self.path)
-            self.total_score = score_now*alive_rate
-        if alive_rate >= 0.9 and score_now*alive_rate > self.best_score:
-            sava_network(self.algorithm.actor, "policy_best", self.path)
-            self.best_score = score_now*alive_rate
+        _score = save_policys(self.algorithm.actor, self.score, score_now, alive_rate, self.path)
 
-        # if self.cost[0] > eval_cost[0]:
-        if self.args.ensemble_mode is True:
-            self.model_net_DNN.save_ensemble("modelDNN_better", self.path)
-        else:
-            sava_network(self.model_net_DNN, "modelDNN_better", self.path)
-            # self.cost[0] = eval_cost[0]
-        # if self.cost[1] > eval_cost[1]:
-        if self.args.ensemble_mode is True:
-            self.model_net_BNN.save_ensemble("modelBNN_better", self.path)
-        else:
-            sava_network(self.model_net_BNN, "modelBNN_better", self.path)
-        #     self.cost[1] = eval_cost[1]
-        # if self.cost[2] > eval_cost[2]:
-        if self.args.ensemble_mode is True:
-            self.inv_model_net_DNN.save_ensemble("invmodelDNN_better", self.path)
-        else:
-            sava_network(self.inv_model_net_DNN, "invmodelDNN_better", self.path)
-        #     self.cost[2] = eval_cost[2]
-        # if self.cost[3] > eval_cost[3]:
-        if self.args.ensemble_mode is True:
-            self.inv_model_net_BNN.save_ensemble("invmodelBNN_better", self.path)
-        else:
-            sava_network(self.inv_model_net_BNN, "invmodelBNN_better", self.path)
-            # self.cost[3] = eval_cost[3]
+        if _score is not None:
+            self.score = _score
+
+        i, _cost = save_models(self.args, self.cost, eval_cost, self.path,
+                                  self.model_net_DNN, self.model_net_BNN,
+                                  self.inv_model_net_DNN, self.inv_model_net_BNN)
+        if _cost is not None:
+            self.cost[i] = _cost
 
         save_data(self.path, "saved_log/Eval_" + str(self.total_step // self.eval_step))
         init_data()
@@ -339,18 +268,11 @@ class Model_trainer():
 
                 if self.total_step >= self.algorithm.training_start and self.train_mode(done, self.local_step):
                     loss_list = self.algorithm.train(self.algorithm.training_step)
-                    cost_DNN, mse_DNN, kl_DNN = self.model_net_DNN.train_all(self.algorithm.training_step)
-                    cost_BNN, mse_BNN, kl_BNN = self.model_net_BNN.train_all(self.algorithm.training_step)
-
-                    cost_invDNN, mse_invDNN, kl_invDNN = self.inv_model_net_DNN.train_all(self.algorithm.training_step)
-                    cost_invBNN, mse_invBNN, kl_invBNN = self.inv_model_net_BNN.train_all(self.algorithm.training_step)
-
-                    saveData = np.hstack((mse_DNN, kl_DNN,
-                                            mse_BNN, kl_BNN,
-                                            mse_invDNN, kl_invDNN,
-                                            mse_invBNN, kl_invBNN))
+                    _, mse_list, kl_list = train_alls(self.args.training_step,
+                                                              self.model_net_DNN, self.model_net_BNN,
+                                                              self.inv_model_net_DNN, self.inv_model_net_BNN)
+                    saveData = np.hstack((mse_list, kl_list))
                     put_data(saveData)
-
 
                 if self.eval is True and self.total_step % self.eval_step == 0:
                     self.evaluate()
@@ -362,7 +284,8 @@ class Model_trainer():
                         np.save(self.path + "saved_log/reward" + ".npy", df)
 
             reward_list.append(self.episode_reward)
-            print("Train | Episode: {}, Reward: {:.2f}, Local_step: {}, Total_step: {}".format(self.episode, self.episode_reward, self.local_step, self.total_step))
+            print("Train | Episode: {}, Reward: {:.2f}, Local_step: {}, Total_step: {}".format(
+                self.episode, self.episode_reward, self.local_step, self.total_step))
         self.env.close()
 
     def test(self):

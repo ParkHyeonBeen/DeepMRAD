@@ -43,9 +43,6 @@ class Basic_trainer():
 
         # score
         self.score = 0
-        self.robust_score = 0
-        self.total_score = 0
-        self.best_score = 0
 
         self.train_mode = None
         if args.train_mode == 'offline':
@@ -123,21 +120,10 @@ class Basic_trainer():
         score_now = sum(reward_list) / len(reward_list)
         alive_rate = alive_cnt / self.eval_episode
 
-        if score_now > self.score:
-            torch.save(self.algorithm.actor.state_dict(),
-                       self.path + "policy_better")
-            self.score = score_now
-        if alive_rate > 0.9:
-            torch.save(self.algorithm.actor.state_dict(),
-                       self.path + "policy_current")
-        if alive_cnt != 0 and score_now*alive_rate > self.total_score:
-            torch.save(self.algorithm.actor.state_dict(),
-                       self.path + "policy_total")
-            self.total_score = score_now*alive_rate
-        if alive_rate >= 0.8 and score_now*alive_rate > self.best_score:
-            torch.save(self.algorithm.actor.state_dict(),
-                       self.path + "policy_best")
-            self.best_score = score_now*alive_rate
+        _score = save_policys(self.algorithm.actor, self.score, score_now, alive_rate, self.path)
+
+        if _score is not None:
+            self.score = _score
 
         print("Eval  | Average Reward {:.2f}, Max reward: {:.2f}, Min reward: {:.2f}, Stddev reward: {:.2f}, alive rate : {:.2f}".format(sum(reward_list)/len(reward_list), max(reward_list), min(reward_list), np.std(reward_list), 100*alive_rate))
         self.test_env.close()
