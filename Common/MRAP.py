@@ -73,10 +73,10 @@ class MRAP:
     def update(self, error):
         outlayer_optimizer = optim.Adam(self.actor.network_outer.parameters(), lr=self.outlayer_lr)
 
-        plot_data(self.actor.network_outer.weight.cpu().detach().numpy())
+        # plot_data(self.actor.network_outer.weight[0].cpu().detach().numpy())
 
         loss = F.mse_loss(input=error, target=torch.zeros_like(error).cuda())
-        # plot_data(loss.cpu().detach().numpy())
+        plot_data(loss.cpu().detach().numpy())
 
         outlayer_optimizer.zero_grad()
         loss.backward()

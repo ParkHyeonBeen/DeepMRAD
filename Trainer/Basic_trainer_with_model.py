@@ -12,7 +12,8 @@ class Model_trainer():
     def __init__(self, env, test_env, algorithm,
                  state_dim, action_dim,
                  max_action, min_action,
-                 args, args_tester=None):
+                 args, args_tester=None,
+                 ensemble_mode=False):
 
         self.args = args
         self.args_tester = args_tester
@@ -46,8 +47,6 @@ class Model_trainer():
 
         # score
         self.score = None
-        self.total_score = None
-        self.best_score = None
         self.cost = None
 
         self.train_mode = None
@@ -75,12 +74,14 @@ class Model_trainer():
         if self.args_tester is None:
             self.render = self.args.render
             self.path = self.args.path
+            self.ensemble_mode = args.ensemble_mode
         else:
             self.frameskip_inner = self.args_tester.frameskip_inner
             self.steps_inloop = self.test_env.env.frame_skip_origin//self.frameskip
             self.render = self.args_tester.render
             self.path = self.args_tester.path
             self.test_episode = self.args_tester.test_episode
+            self.ensemble_mode = ensemble_mode
 
         self.deepdob = None
         self.mrap = None
@@ -89,11 +90,13 @@ class Model_trainer():
         if self.args_tester is not None:
             if "DNN" in args_tester.modelnet_name:
                 self.model_net, self.inv_model_net = \
-                    create_models(self.state_dim, self.action_dim, self.frameskip, self.algorithm, self.args, bnn=False)
+                    create_models(self.state_dim, self.action_dim, self.frameskip, self.algorithm, self.args, bnn=False,
+                                  ensemble_mode=self.ensemble_mode)
             elif "BNN" in args_tester.modelnet_name:
                 self.model_net, self.inv_model_net = \
-                    create_models(self.state_dim, self.action_dim, self.frameskip, self.algorithm, self.args, dnn=False)
-            load_models(args_tester, self.model_net, self.inv_model_net)
+                    create_models(self.state_dim, self.action_dim, self.frameskip, self.algorithm, self.args, dnn=False,
+                                  ensemble_mode=self.ensemble_mode)
+            load_models(args_tester, self.model_net, self.inv_model_net, ensemble_mode=self.ensemble_mode)
 
             if self.args_tester.develop_mode == 'DeepDOB':
                 self.deepdob = DeepDOB(self.inv_model_net, self.test_env, self.steps_inloop, self.args_tester,
@@ -104,7 +107,8 @@ class Model_trainer():
         # For training
         else:
             self.model_net_DNN, self.model_net_BNN, self.inv_model_net_DNN, self.inv_model_net_BNN = \
-                create_models(self.state_dim, self.action_dim, self.frameskip, self.algorithm, self.args)
+                create_models(self.state_dim, self.action_dim, self.frameskip, self.algorithm, self.args,
+                              ensemble_mode=self.ensemble_mode)
 
     def offline_train(self, d, local_step):
         if d:
@@ -318,10 +322,10 @@ class Model_trainer():
 
                 if self.args_tester.develop_mode == 'MRAP':
                     action = self.mrap.eval_action(observation)
-                    env_action = denormalize(action, self.max_action, self.min_action, istest=True).cpu().detach().numpy()
+                    env_action = denormalize(action, self.max_action, self.min_action).cpu().detach().numpy()
                 else:
                     action = self.algorithm.eval_action(observation)   # policy update 하려면, eval_action 내부의 .cpu().numpy() 제거
-                    env_action = denormalize(action, self.max_action, self.min_action, istest=True)
+                    env_action = denormalize(action, self.max_action, self.min_action)
 
                 if self.args_tester.develop_mode == 'DeepDOB':
                     next_observation, reward, done, _ = self.deepdob.step(env_action, self.local_step)

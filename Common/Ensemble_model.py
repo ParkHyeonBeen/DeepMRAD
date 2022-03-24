@@ -20,7 +20,7 @@ class Ensemble(nn.Module):
 
         self.base_model = self.model_batch[0]
 
-    def foward(self, *input_val):
+    def forward(self, *input_val):
         z_list = []
         for model in self.ensemble_model:
             if isinstance(self.base_model, DynamicsNetwork):

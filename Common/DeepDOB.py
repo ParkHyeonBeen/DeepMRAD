@@ -29,7 +29,7 @@ class DeepDOB:
     def step(self, env_action, local_step):
         reward = 0
         env_action_tensor = torch.tensor(env_action, dtype=torch.float).cuda()
-        action_tensor = torch.tensor(normalize(env_action, self.max_action, self.min_action, istest=True), dtype=torch.float).cuda()
+        action_tensor = torch.tensor(normalize(env_action, self.max_action, self.min_action), dtype=torch.float).cuda()
 
         for i in range(self.steps_inloop):
             if i == 0:
@@ -54,7 +54,7 @@ class DeepDOB:
             state_d = (next_state_inner - state_inner) / self.frameskip
 
             self.disturbance_pred = denormalize(self.inv_model_net(state_d, next_state_inner) - action_tensor,
-                                           self.max_action, self.min_action, istest=True)
+                                           self.max_action, self.min_action)
 
             state_inner = next_state_inner
 

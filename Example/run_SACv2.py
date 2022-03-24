@@ -8,7 +8,7 @@ from Algorithm.SAC_v2 import SAC_v2
 from Algorithm.ImageRL.SAC import ImageSAC_v2
 
 from Trainer import *
-from Common.Utils import set_seed, gym_env, dmc_env, dmc_image_env, dmcr_env
+from Common.Utils import *
 
 def hyperparameters():
     parser = argparse.ArgumentParser(description='Soft Actor Critic (SAC) v2 example')
@@ -65,7 +65,7 @@ def hyperparameters():
     parser.add_argument('--buffer-freq', default=10000, type=int, help='buffer saving frequency')
 
     # estimate a model dynamics
-    parser.add_argument('--develop-mode', default=True, type=bool, help="you should choose whether basic or model_base")
+    parser.add_argument('--modelbased-mode', default=True, type=bool, help="you should choose whether basic or model_base")
     parser.add_argument('--ensemble-mode', default=True, type=bool, help="you should choose whether using an ensemble ")
     parser.add_argument('--net-type', default="DNN", help='DNN, BNN')
     parser.add_argument('--model-lr', default=0.001, type=float)
@@ -90,6 +90,7 @@ def main(args):
     # random seed setting
     random_seed = set_seed(args.random_seed)
     print("Random Seed:", random_seed)
+    print("Domain type:", args.domain_type)
 
     #env setting
     if args.domain_type == 'gym':
@@ -119,22 +120,10 @@ def main(args):
         algorithm = ImageSAC_v2(state_dim, action_dim, device, args)
 
     # algorithm.actor.load_state_dict(torch.load('X:/env_mbrl/Results/saved_net/policy/policy_current'))
-    with open(args.path + 'config.txt', 'w') as f:
 
-        print("Training of", args.domain_type + '_' + args.env_name, file=f)
-        print("Algorithm:", algorithm.name, file=f)
-        print("State dim:", state_dim, file=f)
-        print("Action dim:", action_dim, file=f)
-        print("Action range: {:.2f} ~ {:.2f}".format(min(min_action), max(max_action)), file=f)
-        print("step size: {} (frame skip: {})".format(env.env.dt, env.env.frame_skip), file=f)
+    create_config(algorithm.name, args, env, state_dim, action_dim, max_action, min_action)
 
-        print("save path : ", args.path, file=f)
-        print("model lr : {}, model klweight : {}, inv model lr : {}, inv model klweight : {}".
-              format(args.model_lr, args.model_kl_weight, args.inv_model_lr, args.inv_model_kl_weight), file=f)
-
-        print("consideration note : ", args.note, file=f)
-
-    if args.develop_mode is False:
+    if args.modelbased_mode is False:
         trainer = Basic_trainer(
             env, test_env, algorithm, max_action, min_action, args)
     else:

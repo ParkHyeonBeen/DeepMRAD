@@ -8,6 +8,8 @@ import torch.nn as nn
 from collections import deque
 from skimage.util.shape import view_as_windows
 import matplotlib.pyplot as plt
+import sys
+from pathlib import Path
 
 # For testing whether a number is close to zero
 _FLOAT_EPS = np.finfo(np.float64).eps
@@ -15,6 +17,8 @@ _EPS4 = _FLOAT_EPS * 4.0
 
 data = None
 path_data = np.empty([1, 3])
+
+sys.path.append(str(Path('Utils.py').parent.absolute()))  # 절대 경로에 추가
 
 ## related to control ##
 def quat2mat(quat):
@@ -58,10 +62,7 @@ def quat2rpy(quat):
     euler = np.array(euler)
     return euler
 
-def normalize(input, act_max, act_min, istest = False):
-    if istest is True:
-        act_max = act_max/10
-        act_min = act_min/10
+def normalize(input, act_max, act_min):
 
     if type(input) is not torch.Tensor:
         normal_mat = np.zeros((len(input), len(input)))
@@ -74,10 +75,7 @@ def normalize(input, act_max, act_min, istest = False):
     input = (input - normal_bias) @ normal_mat
     return input
 
-def denormalize(input, act_max, act_min, istest = False):
-    if istest is True:
-        act_max = act_max/10
-        act_min = act_min/10
+def denormalize(input, act_max, act_min):
 
     if type(input) is not torch.Tensor:
         denormal_mat = np.zeros((len(input), len(input)))
@@ -113,6 +111,87 @@ def add_disturbance(action, step, terminal_time, scale = 0.1, frequency = None):
     return action
 
 ## related to saved data ##
+
+def np2str(nump):
+    _str = ""
+    for element in nump:
+        _str += (str(element) + " ")
+    return _str
+
+def create_config(algorithm_name, args, env, state_dim, action_dim, max_action, min_action):
+
+    max_action_str = np2str(max_action)
+    min_action_str = np2str(min_action)
+
+    with open(args.path + 'config.txt', 'w') as f:
+        print("Environment:", args.env_name, file=f)
+        print("Algorithm:", algorithm_name, file=f)
+        print("State dim:", state_dim, file=f)
+        print("Action dim:", action_dim, file=f)
+        print("Max action:", max_action_str, file=f)
+        print("Min action:", min_action_str, file=f)
+        print("step size: {} (frame skip: {})".format(env.env.dt, env.env.frame_skip), file=f)
+        print("save path : ", args.path, file=f)
+
+        if args.modelbased_mode is True:
+            print("Model based mode:", args.args.modelbased_mode)
+            print("Ensemble mode:", args.args.ensemble_mode)
+            print("model lr : {}, model klweight : {}, inv model lr : {}, inv model klweight : {}".
+                  format(args.model_lr, args.model_kl_weight, args.inv_model_lr, args.inv_model_kl_weight), file=f)
+
+        print("consideration note : ", args.note, file=f)
+
+def load_config(args):
+
+    if args.prev_result is True:
+        path_config = args.path + "storage/" + args.prev_result_fname + "/config.txt"
+        path_policy = args.path + "storage/" + args.prev_result_fname + "/saved_net/policy/" + args.policynet_name
+    else:
+        path_config = args.path + args.result_index + "config.txt"
+        path_policy = args.path + args.result_index + "saved_net/policy/" + args.policynet_name
+
+    with open(path_config, 'r') as f:
+        lines = f.readlines()
+        for idx, line in enumerate(lines):
+            if 'Environment:' in line:
+                env_name_cfg = line[line.index(':')+2:len(line)-1]
+            if 'Algorithm:' in line:
+                algorithm_cfg = line[line.index(':')+2:len(line)-1]
+            if 'State dim:' in line:
+                state_dim_cfg = int(line[line.index(':')+2:len(line)-1])
+            if 'Action dim:' in line:
+                action_dim_cfg = int(line[line.index(':')+2:len(line)-1])
+            if 'Max action:' in line:
+                max_action_cfg = np.fromstring(line[line.index(':')+2:len(line)-1], dtype=float, sep=" ")
+            if 'Min action:' in line:
+                min_action_cfg = np.fromstring(line[line.index(':')+2:len(line)-1], dtype=float, sep=" ")
+            if 'Model based mode:' in line:
+                modelbased_mode_cfg = (line[line.index(':')+2:len(line)-1] == 'True')
+            if 'Ensemble mode:' in line:
+                ensemble_mode_cfg = (line[line.index(':')+2:len(line)-1] == 'True')
+
+    return path_policy, env_name_cfg, algorithm_cfg, state_dim_cfg, action_dim_cfg, max_action_cfg, min_action_cfg,\
+           modelbased_mode_cfg, ensemble_mode_cfg
+
+def get_algorithm_info(algorithm_name, state_dim, action_dim, device):
+
+    # print(algorithm_name)
+    # print('SAC_v2')
+    # print(algorithm_name == 'SAC_v2')
+
+    if algorithm_name == 'SAC_v2':
+        from Example.run_SACv2 import hyperparameters
+        from Algorithm.SAC_v2 import SAC_v2
+        _args = hyperparameters()
+        _algorithm = SAC_v2(state_dim, action_dim, device, _args)
+    elif algorithm_name == 'DDPG':
+        from Example.run_DDPG import hyperparameters
+        from Algorithm.DDPG import DDPG
+        _args = hyperparameters()
+        _algorithm = DDPG(state_dim, action_dim, device, _args)
+    else:
+        raise Exception("check the name of algorithm")
+    return _args, _algorithm
 
 def init_data():
     global data

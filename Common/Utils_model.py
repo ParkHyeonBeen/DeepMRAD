@@ -13,14 +13,14 @@ def save_model(network, fname : str, root : str):
         torch.save(network.state_dict(), root + "saved_net/model/Etc/" + fname)
 
 
-def create_models(state_dim, action_dim, frameskip, algorithm, args, dnn=True, bnn=True):
+def create_models(state_dim, action_dim, frameskip, algorithm, args, dnn=True, bnn=True, ensemble_mode=False):
 
     model_net_DNN = None
     inv_model_net_DNN = None
     model_net_BNN = None
     inv_model_net_BNN = None
 
-    if args.ensemble_mode is True:
+    if ensemble_mode is True:
         if dnn is True:
             model_net_DNN = Ensemble(DynamicsNetwork(state_dim, action_dim, frameskip, algorithm, args, net_type="DNN"))
             inv_model_net_DNN = Ensemble(InverseDynamicsNetwork(state_dim, action_dim, frameskip, algorithm,
@@ -100,7 +100,7 @@ def save_models(args, cost, eval_cost, path, *models):
             else:
                 save_model(model, name_list[i] + "_current", path)
 
-def load_models(args_tester, model_net, inv_model_net):
+def load_models(args_tester, model_net, inv_model_net, ensemble_mode=False):
 
     path = args_tester.path
     path_model = None
@@ -119,8 +119,12 @@ def load_models(args_tester, model_net, inv_model_net):
             path_model = path + "storage/" + args_tester.prev_result_fname + "/saved_net/model/BNN/" + args_tester.modelnet_name
             path_invmodel = path + "storage/" + args_tester.prev_result_fname + "/saved_net/model/BNN/inv" + args_tester.modelnet_name
         else:
-            path_model = path + "saved_net/model/BNN/" + args_tester.modelnet_name
-            path_invmodel = path + "saved_net/model/BNN/inv" + args_tester.modelnet_name
+            path_model = path + args_tester.result_index + "saved_net/model/BNN/" + args_tester.modelnet_name
+            path_invmodel = path + args_tester.result_index + "saved_net/model/BNN/inv" + args_tester.modelnet_name
 
-    model_net.load_state_dict(torch.load(path_model))
-    inv_model_net.load_state_dict(torch.load(path_invmodel))
+    if ensemble_mode is True:
+        model_net.load_ensemble(path_model)
+        inv_model_net.load_ensemble(path_invmodel)
+    else:
+        model_net.load_state_dict(torch.load(path_model))
+        inv_model_net.load_state_dict(torch.load(path_invmodel))

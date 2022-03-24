@@ -220,7 +220,7 @@ class Basic_trainer():
             while not done:
                 self.local_step += 1
                 action = self.algorithm.eval_action(observation)
-                env_action = denormalize(action, self.max_action, self.min_action, istest=True)
+                env_action = denormalize(action, self.max_action, self.min_action)
                 if self.args_tester.add_noise is True:
                     env_action = add_noise(env_action, scale=self.args_tester.noise_scale)
                 if self.args_tester.add_disturbance is True:
