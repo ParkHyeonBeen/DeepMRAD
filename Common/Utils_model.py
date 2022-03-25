@@ -22,13 +22,19 @@ def create_models(state_dim, action_dim, frameskip, algorithm, args, dnn=True, b
 
     if ensemble_mode is True:
         if dnn is True:
-            model_net_DNN = Ensemble(DynamicsNetwork(state_dim, action_dim, frameskip, algorithm, args, net_type="DNN"))
-            inv_model_net_DNN = Ensemble(InverseDynamicsNetwork(state_dim, action_dim, frameskip, algorithm,
-                                                            args, net_type="DNN"))
+            model_net_DNN = Ensemble(
+                DynamicsNetwork(state_dim, action_dim, frameskip, algorithm, args, net_type="DNN"),
+                ensemble_size=args.ensemble_size, model_batch_size=args.model_batch_size)
+            inv_model_net_DNN = Ensemble(
+                InverseDynamicsNetwork(state_dim, action_dim, frameskip, algorithm, args, net_type="DNN"),
+                ensemble_size=args.ensemble_size, model_batch_size=args.model_batch_size)
         if bnn is True:
-            model_net_BNN = Ensemble(DynamicsNetwork(state_dim, action_dim, frameskip, algorithm, args, net_type="BNN"))
-            inv_model_net_BNN = Ensemble(InverseDynamicsNetwork(state_dim, action_dim, frameskip, algorithm,
-                                                                args, net_type="BNN"))
+            model_net_BNN = Ensemble(
+                DynamicsNetwork(state_dim, action_dim, frameskip, algorithm, args, net_type="BNN"),
+                ensemble_size=args.ensemble_size, model_batch_size=args.model_batch_size)
+            inv_model_net_BNN = Ensemble(
+                InverseDynamicsNetwork(state_dim, action_dim, frameskip, algorithm, args, net_type="BNN"),
+                ensemble_size=args.ensemble_size, model_batch_size=args.model_batch_size)
     else:
         if dnn is True:
             model_net_DNN = DynamicsNetwork(state_dim, action_dim, frameskip, algorithm, args, net_type="DNN")
@@ -88,7 +94,7 @@ def save_models(args, cost, eval_cost, path, *models):
         for i, model in enumerate(models):
             if cost[i] > eval_cost[i]:
                 model.save_ensemble(name_list[i] + "_better", path)
-                return i, eval_cost[i]
+                return [i, eval_cost[i]]
             else:
                 model.save_ensemble(name_list[i] + "_current", path)
 
@@ -96,7 +102,7 @@ def save_models(args, cost, eval_cost, path, *models):
         for i, model in enumerate(models):
             if cost[i] > eval_cost[i]:
                 save_model(model, name_list[i] + "_better", path)
-                return i, eval_cost[i]
+                return [i, eval_cost[i]]
             else:
                 save_model(model, name_list[i] + "_current", path)
 

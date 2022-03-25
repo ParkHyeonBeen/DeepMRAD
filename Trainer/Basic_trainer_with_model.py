@@ -189,23 +189,22 @@ class Model_trainer():
             self.score = score_now
             self.cost = eval_cost
 
-        _score = save_policys(self.algorithm.actor, self.score, score_now, alive_rate, self.path)
+        _score = save_policys(self.algorithm, self.score, score_now, alive_rate, self.path)
 
         if _score is not None:
             self.score = _score
 
-        i, _cost = save_models(self.args, self.cost, eval_cost, self.path,
+        cost_with_index = save_models(self.args, self.cost, eval_cost, self.path,
                                   self.model_net_DNN, self.model_net_BNN,
                                   self.inv_model_net_DNN, self.inv_model_net_BNN)
-        if _cost is not None:
-            self.cost[i] = _cost
+        if cost_with_index is not None:
+            self.cost[cost_with_index[0]] = cost_with_index[1]
 
         save_data(self.path, "saved_log/Eval_" + str(self.total_step // self.eval_step))
         init_data()
 
         print("Eval  | Average Reward: {:.2f}, Max reward: {:.2f}, Min reward: {:.2f}, Stddev reward: {:.2f}, alive rate : {:.2f}"
               .format(sum(reward_list)/len(reward_list), max(reward_list), min(reward_list), np.std(reward_list), 100*alive_rate))
-        # print("Cost | DNN: ", eval_cost[0], " BNN: ", eval_cost[1]," invDNN: ", eval_cost[2], " invBNN: ", eval_cost[3])
         print("Cost  | DNN: {:.7f}, BNN: {:.7f}, invDNN: {:.7f}, invBNN: {:.7f} "
               .format(eval_cost[0], eval_cost[1], eval_cost[2], eval_cost[3]))
         self.test_env.close()
@@ -356,19 +355,20 @@ class Model_trainer():
                 observation = next_observation
 
                 if self.local_step == self.env.spec.max_episode_steps:
-                    # print(episode, "th pos :", state[0:7])
                     alive_cnt += 1
                     alive = True
 
-            print(
-                "Eval of {}th episode  | Episode Reward {:.2f}, alive : {}".format(episode, eval_reward, alive))
+            # print("Eval of {}th episode  | Episode Reward {:.2f}, alive : {}".format(episode, eval_reward, alive))
             reward_list.append(eval_reward)
-            # print("loss:", loss/self.local_step)
 
         print(
             "Eval  | Average Reward {:.2f}, Max reward: {:.2f}, Min reward: {:.2f}, Stddev reward: {:.2f}, alive rate : {:.2f}".format(
                 sum(reward_list) / len(reward_list), max(reward_list), min(reward_list), np.std(reward_list),
                 100 * (alive_cnt / self.test_episode)))
         self.test_env.close()
+        return sum(reward_list) / len(reward_list),\
+               max(reward_list), min(reward_list),\
+               np.std(reward_list),\
+               100 * (alive_cnt / self.test_episode)
 
 

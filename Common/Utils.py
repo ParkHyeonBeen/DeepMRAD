@@ -8,7 +8,7 @@ import torch.nn as nn
 from collections import deque
 from skimage.util.shape import view_as_windows
 import matplotlib.pyplot as plt
-import sys
+import sys, os, time
 from pathlib import Path
 
 # For testing whether a number is close to zero
@@ -112,6 +112,56 @@ def add_disturbance(action, step, terminal_time, scale = 0.1, frequency = None):
 
 ## related to saved data ##
 
+def create_save_dir(args, algorithm_name):
+
+    root = args.path + 'storage'
+    if not os.path.isdir(root): os.mkdir(root)
+
+    env_dir = root + "/" + args.env_name
+    if not os.path.isdir(env_dir): os.mkdir(env_dir)
+
+    if args.ensemble_mode is True:
+        save_dir = env_dir + "/%s_" % time.strftime("%m%d") + algorithm_name + "_ensemble"
+    else:
+        save_dir = env_dir + "/%s_" % time.strftime("%m%d") + algorithm_name
+    if not os.path.isdir(save_dir): os.mkdir(save_dir)
+
+    log_dir = save_dir + "/saved_log"
+    net_dir = save_dir + "/saved_net"
+    if not os.path.isdir(log_dir): os.mkdir(log_dir)
+    if not os.path.isdir(net_dir): os.mkdir(net_dir)
+
+    log_eval_dir = log_dir + "/eval"
+    log_evalby_dir = log_dir + "/eval_by"
+    if not os.path.isdir(log_eval_dir): os.mkdir(log_eval_dir)
+    if not os.path.isdir(log_evalby_dir): os.mkdir(log_evalby_dir)
+
+    policy_dir = net_dir + "/policy"
+    if not os.path.isdir(policy_dir): os.mkdir(policy_dir)
+
+    model_dir = net_dir + "/model"
+    dnn_dir = model_dir + "/DNN"
+    bnn_dir = model_dir + "/BNN"
+    etc_dir = model_dir + "/Etc"
+    if args.modelbased_mode is True:
+        if not os.path.isdir(model_dir): os.mkdir(model_dir)
+        if not os.path.isdir(dnn_dir): os.mkdir(dnn_dir)
+        if not os.path.isdir(bnn_dir): os.mkdir(bnn_dir)
+        if not os.path.isdir(etc_dir): os.mkdir(etc_dir)
+
+    paths = {'save': save_dir,
+             'log': log_dir,
+             'log_eval': log_eval_dir,
+             'log_evalby': log_evalby_dir,
+             'model': model_dir,
+             'policy': policy_dir,
+             'dnn': dnn_dir,
+             'bnn': bnn_dir,
+             'etc': etc_dir,
+             }
+
+    return paths
+
 def np2str(nump):
     _str = ""
     for element in nump:
@@ -123,23 +173,26 @@ def create_config(algorithm_name, args, env, state_dim, action_dim, max_action, 
     max_action_str = np2str(max_action)
     min_action_str = np2str(min_action)
 
-    with open(args.path + 'config.txt', 'w') as f:
+    with open(args.path + '/config.txt', 'w') as f:
         print("Environment:", args.env_name, file=f)
         print("Algorithm:", algorithm_name, file=f)
         print("State dim:", state_dim, file=f)
         print("Action dim:", action_dim, file=f)
         print("Max action:", max_action_str, file=f)
         print("Min action:", min_action_str, file=f)
-        print("step size: {} (frame skip: {})".format(env.env.dt, env.env.frame_skip), file=f)
-        print("save path : ", args.path, file=f)
+        print("Step size: {} (frame skip: {})".format(env.env.dt, env.env.frame_skip), file=f)
+        print("Save path :", args.path, file=f)
 
         if args.modelbased_mode is True:
-            print("Model based mode:", args.args.modelbased_mode)
-            print("Ensemble mode:", args.args.ensemble_mode)
+            print("Model based mode:", args.modelbased_mode, file=f)
             print("model lr : {}, model klweight : {}, inv model lr : {}, inv model klweight : {}".
                   format(args.model_lr, args.model_kl_weight, args.inv_model_lr, args.inv_model_kl_weight), file=f)
+            print("Ensemble mode:", args.ensemble_mode, file=f)
+            print("ensemble size : {}, model batch size : {}".
+                  format(args.ensemble_size, args.model_batch_size), file=f)
 
         print("consideration note : ", args.note, file=f)
+        print(" ")
 
 def load_config(args):
 
@@ -150,9 +203,13 @@ def load_config(args):
         path_config = args.path + args.result_index + "config.txt"
         path_policy = args.path + args.result_index + "saved_net/policy/" + args.policynet_name
 
+    modelbased_mode_cfg = False
+    ensemble_mode_cfg = False
+
     with open(path_config, 'r') as f:
         lines = f.readlines()
         for idx, line in enumerate(lines):
+            # print(line[:len(line)-1])
             if 'Environment:' in line:
                 env_name_cfg = line[line.index(':')+2:len(line)-1]
             if 'Algorithm:' in line:
@@ -170,8 +227,9 @@ def load_config(args):
             if 'Ensemble mode:' in line:
                 ensemble_mode_cfg = (line[line.index(':')+2:len(line)-1] == 'True')
 
-    return path_policy, env_name_cfg, algorithm_cfg, state_dim_cfg, action_dim_cfg, max_action_cfg, min_action_cfg,\
+    return path_policy, env_name_cfg, algorithm_cfg, state_dim_cfg, action_dim_cfg, max_action_cfg, min_action_cfg, \
            modelbased_mode_cfg, ensemble_mode_cfg
+
 
 def get_algorithm_info(algorithm_name, state_dim, action_dim, device):
 

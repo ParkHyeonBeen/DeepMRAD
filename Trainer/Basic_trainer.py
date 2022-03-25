@@ -193,7 +193,6 @@ class Basic_trainer():
                 if self.eval == True and self.total_step % self.eval_step == 0:
                     self.evaluate()
 
-            # print("alpha : ", self.algorithm.log_alpha.exp())
             print("Train | Episode: {}, Reward: {:.2f}, Local_step: {}, Total_step: {}".format(self.episode, self.episode_reward, self.local_step, self.total_step))
         self.env.close()
 
@@ -244,12 +243,10 @@ class Basic_trainer():
                 observation = next_observation
 
                 if self.local_step == self.env.spec.max_episode_steps:
-                    # print(episode, "th pos :", observation[0:7])
                     alive_cnt += 1
                     alive = True
 
-            print(
-                "Eval of {}th episode  | Episode Reward {:.2f}, alive : {}".format(episode, eval_reward, alive))
+            # print("Eval of {}th episode  | Episode Reward {:.2f}, alive : {}".format(episode, eval_reward, alive))
             reward_list.append(eval_reward)
 
         print(
@@ -257,5 +254,9 @@ class Basic_trainer():
                 sum(reward_list) / len(reward_list), max(reward_list), min(reward_list), np.std(reward_list),
                 100 * (alive_cnt / self.test_episode)))
         self.test_env.close()
+        return sum(reward_list) / len(reward_list),\
+               max(reward_list), min(reward_list),\
+               np.std(reward_list),\
+               100 * (alive_cnt / self.test_episode)
 
 

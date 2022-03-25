@@ -1,22 +1,28 @@
+from collections import deque
+
+import numpy as np
+
 from Network.Model_Network import *
 from Common.Utils import weight_init
 
 class Ensemble(nn.Module):
-    def __init__(self, base_model, ensemble_size=2, model_batch_size=5):
+    def __init__(self, base_model, ensemble_size=2, model_batch_size=5, score_len=10):
         super(Ensemble, self).__init__()
 
         self.ensemble_size = ensemble_size
         self.model_batch_size = model_batch_size
 
         self.model_batch = []
+        self.score_list = {}
         self.ensemble_list = []
         self.ensemble_model = []
         self.buffer = []
 
-        for _ in range(self.model_batch_size):
+        for i in range(self.model_batch_size):
             _model = base_model
             _model.apply(weight_init)
             self.model_batch.append(_model)
+            self.score_list[i] = deque(maxlen=score_len)
 
         self.base_model = self.model_batch[0]
 
@@ -51,10 +57,13 @@ class Ensemble(nn.Module):
         return cost_mean, mse_mean, kl_mean
 
     def eval_model(self, state, action, next_state):
+
+        self.buffer = []
         self.ensemble_list = []
-        for model in self.model_batch:
+
+        for idx, model in enumerate(self.model_batch):
             cost, mse, kl = model.eval_model(state, action, next_state)
-            self._add((model, cost, mse, kl))
+            self._add(idx, (model, cost, mse, kl))
         esemble_list = self._select_bests()
         state_d = (next_state - state)/self.base_model.frameskip
 
@@ -115,25 +124,39 @@ class Ensemble(nn.Module):
 
     def load_ensemble(self, path : str):
         load_ensemble = torch.load(path)
-        load_model = self.model_batch[:self.ensemble_size]
+        # load_model = self.model_batch[:self.ensemble_size]
+        load_model = self.model_batch[:1]
         for i, model in enumerate(load_model):
-            model.load_state_dict(load_ensemble['ensemble' + str(i+1)])
+            model.load_state_dict(load_ensemble['ensemble' + str(2)])
             self.ensemble_model.append(model)
+        # print(self.ensemble_model)
         return self.ensemble_model
 
-    def _add(self, data):
+    def _add(self, idx, data):
         self.buffer.append(data)
+        self.score_list[idx].append(data[1])
 
-    def _select_bests(self, compare_index=1, reverse=True):
-        for i, data in enumerate(self.buffer):
-            if i < self.ensemble_size:
-                self.ensemble_list.append(data)
-            elif i == self.ensemble_size - 1:
-                self.ensemble_list.sort(key=lambda x: x[compare_index], reverse=reverse)
-            else:
-                if self.ensemble_list[0][1] > data[1]:
-                    self.ensemble_list[0] = data
-                    self.ensemble_list.sort(key=lambda x: x[compare_index], reverse=reverse)
-                else:
-                    pass
+    # def _select_bests(self, compare_index=1, reverse=True):
+    #     for i, data in enumerate(self.buffer):
+    #         if i < self.ensemble_size:
+    #             self.ensemble_list.append(data)
+    #         elif i == self.ensemble_size - 1:
+    #             self.ensemble_list.sort(key=lambda x: x[compare_index], reverse=reverse)
+    #         else:
+    #             if self.ensemble_list[0][1] > data[1]:
+    #                 self.ensemble_list[0] = data
+    #                 self.ensemble_list.sort(key=lambda x: x[compare_index], reverse=reverse)
+    #             else:
+    #                 pass
+    #     return self.ensemble_list
+
+    def _select_bests(self, reverse=True):
+        score_mean_list = []
+        for idx, data in enumerate(self.buffer):
+            score_mean_list.append([data, sum(self.score_list[idx])/len(self.score_list[idx])])
+
+        score_mean_list.sort(key=lambda x: x[1], reverse=reverse)
+
+        for i in range(self.ensemble_size):
+            self.ensemble_list.append(score_mean_list[i][0])
         return self.ensemble_list

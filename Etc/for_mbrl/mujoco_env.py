@@ -1,7 +1,7 @@
 from collections import OrderedDict
 import os
 
-from Test_Result.Tester import hyperparameters
+from Tester.Tester import hyperparameters
 
 from gym import error, spaces
 from gym.utils import seeding
