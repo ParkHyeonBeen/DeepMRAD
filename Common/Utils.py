@@ -15,10 +15,70 @@ from pathlib import Path
 _FLOAT_EPS = np.finfo(np.float64).eps
 _EPS4 = _FLOAT_EPS * 4.0
 
-data = None
-path_data = np.empty([1, 3])
 
 sys.path.append(str(Path('Utils.py').parent.absolute()))  # 절대 경로에 추가
+
+class DataManager:
+    def __init__(self, path_dim=2):
+        self.data = None
+        self.path_dim = path_dim
+        self.path_data = np.empty([1, path_dim])
+
+    def init_data(self):
+        self.data = None
+
+    def put_data(self, obs):
+        if self.data is None:
+            self.data = obs
+        else:
+            self.data = np.vstack((self.data, obs))
+
+    def put_path(self, obs):
+        self.path_data = np.vstack((self.path_data, obs[:3]))
+
+    def mean_data(self):
+        mean_data = np.mean(self.data, axis=0)
+        return mean_data
+
+    def plot_data(self, obs, label=None):
+        self.put_data(obs)
+        if label is None:
+            plt.plot(self.data)
+        else:
+            plt.plot(self.data, label=label)
+            plt.legend()
+        plt.show(block=False)
+        plt.pause(0.0001)
+        plt.cla()
+
+    def plot_path(self, obs, label=None):
+
+        self.put_path(obs)
+        if label is None:
+            plt.plot(self.path_data[:, i] for i in range(self.path_dim))
+        else:
+            plt.plot([self.path_data[:, i] for i in range(self.path_dim)], label=label)
+            plt.legend()
+        plt.show(block=False)
+        plt.pause(0.0001)
+        plt.cla()
+
+    def save_data(self, path, fname, numpy=False):
+
+        if numpy is False:
+            df = pd.DataFrame(self.data)
+            df.to_csv(path + fname + ".csv")
+        else:
+            df = np.array(self.data)
+            np.save(path + fname + ".npy", df)
+
+    def save_path(self, path, fname, numpy=False):
+        if numpy is False:
+            df = pd.DataFrame(self.data)
+            df.to_csv(path + fname + ".csv")
+        else:
+            df = np.array(self.path_data)
+            np.save(path + fname + ".npy", df)
 
 ## related to control ##
 def quat2mat(quat):
@@ -99,7 +159,7 @@ def inv_softsign(y):
 
 def add_noise(action, scale = 0.1):
     for i in range(len(action)):
-        action[i] += random.uniform(-scale, scale)
+        action[i] += scale*np.random.normal()
     return action
 
 def add_disturbance(action, step, terminal_time, scale = 0.1, frequency = None):
@@ -224,7 +284,7 @@ def load_config(args):
                 min_action_cfg = np.fromstring(line[line.index(':')+2:len(line)-1], dtype=float, sep=" ")
             if 'Model based mode:' in line:
                 modelbased_mode_cfg = (line[line.index(':')+2:len(line)-1] == 'True')
-            if 'Ensemble mode:' in line:
+            if 'Ensemble mode:' in line and not 'single' in args.modelnet_name:
                 ensemble_mode_cfg = (line[line.index(':')+2:len(line)-1] == 'True')
 
     return path_policy, env_name_cfg, algorithm_cfg, state_dim_cfg, action_dim_cfg, max_action_cfg, min_action_cfg, \
@@ -251,82 +311,17 @@ def get_algorithm_info(algorithm_name, state_dim, action_dim, device):
         raise Exception("check the name of algorithm")
     return _args, _algorithm
 
-def init_data():
-    global data
-    data = None
-
-def put_data(obs):
-    global data
-    if data is None:
-        data = obs
-    else:
-        data = np.vstack((data, obs))
-
-def mean_data():
-    global data
-    data = np.mean(data, axis=0)
-
-def put_path(obs):
-    global path_data
-    path_data = np.vstack((path_data, obs[:3]))
-
-def plot_data(obs, label=None):
-    global data
-    # print(data)
-    if data is None:
-        data = obs
-    else:
-        data = np.vstack((data, obs))
-    if label is None:
-        plt.plot(data)
-    else:
-        plt.plot(data, label=label)
-        plt.legend()
-    plt.show(block=False)
-    plt.pause(0.0001)
-    plt.cla()
-
-def plot_path(obs, label=None):
-    global path_data
-    path_data = np.vstack((path_data, obs[:2]))
-    if label is None:
-        plt.plot(path_data[:,0], path_data[:,1])
-    else:
-        plt.plot(path_data[:, 0], path_data[:, 1], label=label)
-        plt.legend()
-    plt.show(block=False)
-    plt.pause(0.0001)
-    plt.cla()
-
-def save_data(path, fname, numpy=False):
-    global data
-
-    if numpy is False:
-        df = pd.DataFrame(data)
-        df.to_csv(path + fname + ".csv")
-    else:
-        df = np.array(data)
-        np.save(path + fname + ".npy", df)
-
-def save_path(path, fname, numpy=False):
-    global path_data
-    if numpy is False:
-        df = pd.DataFrame(data)
-        df.to_csv(path + fname + ".csv")
-    else:
-        df = np.array(path_data)
-        np.save(path + fname + ".npy", df)
-
 def save_policys(policy, score, score_now, alive_rate, path):
 
-    if score_now > score:
-        torch.save(policy.actor.state_dict(), path + "saved_net/policy/policy_better")
-        return score_now
-    elif score_now > score and alive_rate > 0.9:
+    if score_now > score and alive_rate > 0.9:
         torch.save(policy.actor.state_dict(), path + "saved_net/policy/policy_best")
+        return score_now
+    elif score_now > score:
+        torch.save(policy.actor.state_dict(), path + "saved_net/policy/policy_better")
         return score_now
     else:
         torch.save(policy.actor.state_dict(), path + "saved_net/policy/policy_current")
+
 
 ## related to gym
 

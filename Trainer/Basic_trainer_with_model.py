@@ -85,6 +85,7 @@ class Model_trainer():
 
         self.deepdob = None
         self.mrap = None
+        self.eval_data = DataManager()
 
         # For Testing
         if self.args_tester is not None:
@@ -124,8 +125,8 @@ class Model_trainer():
         return False
 
     def evaluate(self):
-        save_data(self.path, "saved_log/Eval_by" + str(self.total_step // self.eval_step))
-        init_data()
+        self.eval_data.save_data(self.path, "saved_log/Eval_by" + str(self.total_step // self.eval_step))
+        self.eval_data.init_data()
 
         self.eval_num += 1
         episode = 0
@@ -158,8 +159,9 @@ class Model_trainer():
                 _, mse_list, _ = eval_models(observation, action, next_observation,
                                               self.model_net_DNN, self.model_net_BNN,
                                               self.inv_model_net_DNN, self.inv_model_net_BNN)
-                if episode == 1:
-                    put_data(mse_list)
+                if episode == self.eval_episode:
+                    self.eval_data.put_data(mse_list)
+                    eval_cost_temp += mse_list
 
                 if self.render == True:
                     if self.domain_type in {'gym', "atari"}:
@@ -172,18 +174,16 @@ class Model_trainer():
                         cv2.waitKey(1)
 
                 eval_reward += reward
-                eval_cost_temp += mse_list
                 observation = next_observation
 
                 if self.local_step == self.env.spec.max_episode_steps:
                     alive_cnt += 1
 
-            eval_cost += eval_cost_temp/self.local_step
+            eval_cost = eval_cost_temp / self.local_step
             reward_list.append(eval_reward)
 
         score_now = sum(reward_list) / len(reward_list)
         alive_rate = alive_cnt / self.eval_episode
-        eval_cost = eval_cost/self.eval_episode
 
         if self.eval_num == 1:
             self.score = score_now
@@ -200,8 +200,8 @@ class Model_trainer():
         if cost_with_index is not None:
             self.cost[cost_with_index[0]] = cost_with_index[1]
 
-        save_data(self.path, "saved_log/Eval_" + str(self.total_step // self.eval_step))
-        init_data()
+        self.eval_data.save_data(self.path, "saved_log/Eval_" + str(self.total_step // self.eval_step))
+        self.eval_data.init_data()
 
         print("Eval  | Average Reward: {:.2f}, Max reward: {:.2f}, Min reward: {:.2f}, Stddev reward: {:.2f}, alive rate : {:.2f}"
               .format(sum(reward_list)/len(reward_list), max(reward_list), min(reward_list), np.std(reward_list), 100*alive_rate))
@@ -275,7 +275,7 @@ class Model_trainer():
                                                               self.model_net_DNN, self.model_net_BNN,
                                                               self.inv_model_net_DNN, self.inv_model_net_BNN)
                     saveData = np.hstack((mse_list, kl_list))
-                    put_data(saveData)
+                    self.eval_data.put_data(saveData)
 
                 if self.eval is True and self.total_step % self.eval_step == 0:
                     self.evaluate()
@@ -358,7 +358,7 @@ class Model_trainer():
                     alive_cnt += 1
                     alive = True
 
-            # print("Eval of {}th episode  | Episode Reward {:.2f}, alive : {}".format(episode, eval_reward, alive))
+            print("Eval of {}th episode  | Episode Reward {:.2f}, alive : {}".format(episode, eval_reward, alive))
             reward_list.append(eval_reward)
 
         print(

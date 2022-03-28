@@ -5,31 +5,49 @@ import Tester
 from Tester import hyperparameters
 from Common.Utils import *
 
-model_name = 'Walker2d-v3'
-max_action = np.array([1.0, 1.0, 1.0, 1.0, 1.0, 1.0])
-min_action = np.array([-1.0, -1.0, -1.0, -1.0, -1.0, -1.0])
+Tester_data = DataManager()
+
+result_fname = "0327_Walker2d-v3_esb"
+num_test = 100
+develop_mode = 'DeepDOB'
+policy_name = "policy_current"
 develop_list = ['DeepDOB']
-model_list = ["modelDNN_better", "modelBNN_better"]
+model_list = ["modelBNN_current", "modelDNN_current"]
 save_dir = 'X:/env_mbrl/Results/Integrated_log/'
 num_dist = 40
+dist_kind = 'normal'    # 'irregular'
 
-print("model name:", model_name)
+print("result name:", result_fname)
 print("action range: +-1")
-print("the number of disturbance:", num_dist)
+print("the kind of external force:", dist_kind)
+print("the number of external force:", num_dist)
 
 print("start time : %s" % time.strftime("%Y%m%d-%H%M%S"))
 start_time = time.time()
 for mode in develop_list:
     if mode == 'Basic':
         print("start Basic PG algorithm")
-        init_data()
+        Tester_data.init_data()
         for i in np.linspace(0, 1, num_dist+1):
-            print("current disturbance scale :", i)
-            args = hyperparameters(disturbance_scale=i)
+            print("current external force scale :", i)
+            if dist_kind == 'irregular':
+                args = hyperparameters(result_fname=result_fname,
+                                       num_test=num_test,
+                                       develop_mode=mode,
+                                       disturbance_scale=i,
+                                       policy_name=policy_name
+                                       )
+            else:
+                args = hyperparameters(result_fname=result_fname,
+                                       num_test=num_test,
+                                       develop_mode=mode,
+                                       noise_scale=i,
+                                       policy_name=policy_name
+                                       )
             reward_avg, reward_max, reward_min, reward_std, alive_rate = Tester.main(args)
             saveData = np.array([reward_avg, reward_max, reward_min, reward_std, alive_rate])
-            put_data(saveData)
-        save_data(save_dir, 'Basic')
+            Tester_data.put_data(saveData)
+        Tester_data.save_data(save_dir, result_fname + '_' + mode + '_' + dist_kind)
         print("finish time of Basic: %s" % time.strftime("%Y%m%d-%H%M%S"))
         print("elapsed time : ", time.time() - start_time)
     else:
@@ -38,14 +56,29 @@ for mode in develop_list:
             print("start time of "+model+": %s" % time.strftime("%Y%m%d-%H%M%S"))
             start_time = time.time()
             print("The model to test :", model)
-            init_data()
+            Tester_data.init_data()
             for i in np.linspace(0, 1, num_dist+1):
-                print("current disturbance scale :", i)
-                args = hyperparameters(develop_mode=mode, disturbance_scale=i, model_name=model)
+                print("current external force scale :", i)
+                if dist_kind == 'irregular':
+                    args = hyperparameters(result_fname=result_fname,
+                                           num_test=num_test,
+                                           develop_mode=mode,
+                                           disturbance_scale=i,
+                                           policy_name=policy_name,
+                                           model_name=model
+                                           )
+                else:
+                    args = hyperparameters(result_fname=result_fname,
+                                           num_test=num_test,
+                                           develop_mode=mode,
+                                           noise_scale=i,
+                                           policy_name=policy_name,
+                                           model_name=model
+                                           )
                 reward_avg, reward_max, reward_min, reward_std, alive_rate = Tester.main(args)
                 saveData = np.array([reward_avg, reward_max, reward_min, reward_std, alive_rate])
-                put_data(saveData)
-            save_data(save_dir, model)
+                Tester_data.put_data(saveData)
+            Tester_data.save_data(save_dir, result_fname + '_' + mode + '_' + dist_kind)
             print("finish time of" + model + ": %s" % time.strftime("%Y%m%d-%H%M%S"))
             print("elapsed time : ", time.time() - start_time)
 

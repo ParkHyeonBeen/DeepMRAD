@@ -26,6 +26,7 @@ class MRAP:
 
         self.update_step = 0
         self.num_update = 0
+        self.MRAP_data = DataManager()
 
     def eval_error(self, state, action, next_state):
         self.update_step += 1
@@ -76,7 +77,7 @@ class MRAP:
         # plot_data(self.actor.network_outer.weight[0].cpu().detach().numpy())
 
         loss = F.mse_loss(input=error, target=torch.zeros_like(error).cuda())
-        plot_data(loss.cpu().detach().numpy())
+        self.MRAP_data.plot_data(loss.cpu().detach().numpy())
 
         outlayer_optimizer.zero_grad()
         loss.backward()

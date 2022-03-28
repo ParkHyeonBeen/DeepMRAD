@@ -129,6 +129,7 @@ class Basic_trainer():
         self.test_env.close()
 
     def run(self):
+        reward_list = []
         while True:
             if self.total_step > self.max_step:
                 print("Training finished")
@@ -193,6 +194,16 @@ class Basic_trainer():
                 if self.eval == True and self.total_step % self.eval_step == 0:
                     self.evaluate()
 
+                if self.eval is True and self.total_step % self.eval_step == 0:
+                    self.evaluate()
+                    if self.args.numpy is False:
+                        df = pd.DataFrame(reward_list)
+                        df.to_csv(self.path + "saved_log/reward" + ".csv")
+                    else:
+                        df = np.array(reward_list)
+                        np.save(self.path + "saved_log/reward" + ".npy", df)
+
+            reward_list.append(self.episode_reward)
             print("Train | Episode: {}, Reward: {:.2f}, Local_step: {}, Total_step: {}".format(self.episode, self.episode_reward, self.local_step, self.total_step))
         self.env.close()
 

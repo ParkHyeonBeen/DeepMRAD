@@ -9,7 +9,14 @@ from Common.Utils import set_seed, gym_env
 
 sys.path.append(str(Path('Tester.py').parent.absolute()))   # 절대 경로에 추가
 
-def hyperparameters(develop_mode = 'Basic', disturbance_scale=0.1, model_name = "modelDNN_current"):
+def hyperparameters(result_fname="0327_Walker2d-v3_esb",
+                    num_test=100,
+                    develop_mode='DeepDOB',
+                    disturbance_scale=0.0,
+                    noise_scale=0.0,
+                    policy_name="policy_current",
+                    model_name="modelBNN_current"
+                    ):
 
     parser = argparse.ArgumentParser(description='Tester of algorithms')
 
@@ -20,19 +27,19 @@ def hyperparameters(develop_mode = 'Basic', disturbance_scale=0.1, model_name = 
 
     # environment
     parser.add_argument('--render', default=False, type=bool)
-    parser.add_argument('--test-episode', default=100, type=int, help='Number of episodes to perform evaluation')
+    parser.add_argument('--test-episode', default=num_test, type=int, help='Number of episodes to perform evaluation')
 
     # result to watch
     parser.add_argument('--path', default="X:/env_mbrl/Results/", help='path for save')
     parser.add_argument('--result-index', default="Result/", help='result to check')
     parser.add_argument('--prev-result', default=True, type=bool, help='if previous result, True')
-    parser.add_argument('--prev-result-fname', default="0325_Walker2d-v3_esb", help='choose the result to view')
+    parser.add_argument('--prev-result-fname', default=result_fname, help='choose the result to view')
     parser.add_argument('--modelnet-name', default=model_name, help='modelDNN_better, modelBNN_better')
-    parser.add_argument('--policynet-name', default="policy_current", help='best, better, current, total')
+    parser.add_argument('--policynet-name', default=policy_name, help='best, better, current, total')
 
     # setting real world
-    parser.add_argument('--add_noise', default=False, type=bool, help="if True, add noise to action")
-    parser.add_argument('--noise_scale', default=0.1, type=float, help='white noise having the noise scale')
+    parser.add_argument('--add_noise', default=True, type=bool, help="if True, add noise to action")
+    parser.add_argument('--noise_scale', default=noise_scale, type=float, help='white noise having the noise scale')
 
     parser.add_argument('--add_disturbance', default=True, type=bool, help="if True, add disturbance to action")
     parser.add_argument('--disturbance_scale', default=disturbance_scale, type=float, help='choose disturbance scale')

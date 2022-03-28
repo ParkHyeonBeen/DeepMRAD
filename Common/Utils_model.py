@@ -24,17 +24,17 @@ def create_models(state_dim, action_dim, frameskip, algorithm, args, dnn=True, b
         if dnn is True:
             model_net_DNN = Ensemble(
                 DynamicsNetwork(state_dim, action_dim, frameskip, algorithm, args, net_type="DNN"),
-                ensemble_size=args.ensemble_size, model_batch_size=args.model_batch_size)
+                score_len=args.eval_episode, ensemble_size=args.ensemble_size, model_batch_size=args.model_batch_size)
             inv_model_net_DNN = Ensemble(
                 InverseDynamicsNetwork(state_dim, action_dim, frameskip, algorithm, args, net_type="DNN"),
-                ensemble_size=args.ensemble_size, model_batch_size=args.model_batch_size)
+                score_len=args.eval_episode, ensemble_size=args.ensemble_size, model_batch_size=args.model_batch_size)
         if bnn is True:
             model_net_BNN = Ensemble(
                 DynamicsNetwork(state_dim, action_dim, frameskip, algorithm, args, net_type="BNN"),
-                ensemble_size=args.ensemble_size, model_batch_size=args.model_batch_size)
+                score_len=args.eval_episode, ensemble_size=args.ensemble_size, model_batch_size=args.model_batch_size)
             inv_model_net_BNN = Ensemble(
                 InverseDynamicsNetwork(state_dim, action_dim, frameskip, algorithm, args, net_type="BNN"),
-                ensemble_size=args.ensemble_size, model_batch_size=args.model_batch_size)
+                score_len=args.eval_episode, ensemble_size=args.ensemble_size, model_batch_size=args.model_batch_size)
     else:
         if dnn is True:
             model_net_DNN = DynamicsNetwork(state_dim, action_dim, frameskip, algorithm, args, net_type="DNN")

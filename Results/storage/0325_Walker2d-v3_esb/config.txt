@@ -9,5 +9,4 @@ save path: X:/env_mbrl/Results/Result/
 Model based mode: True
 Ensemble mode: True
 model lr : 0.001, model klweight : 0.05, inv model lr : 0.001, inv model klweight : 0.1
-consideration note :  use frame skip instead of steptime to compute differential states
-
+consideration note :  use the mean of each step

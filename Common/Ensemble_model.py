@@ -6,7 +6,7 @@ from Network.Model_Network import *
 from Common.Utils import weight_init
 
 class Ensemble(nn.Module):
-    def __init__(self, base_model, ensemble_size=2, model_batch_size=5, score_len=10):
+    def __init__(self, base_model, score_len, ensemble_size=2, model_batch_size=5):
         super(Ensemble, self).__init__()
 
         self.ensemble_size = ensemble_size
@@ -124,10 +124,10 @@ class Ensemble(nn.Module):
 
     def load_ensemble(self, path : str):
         load_ensemble = torch.load(path)
-        # load_model = self.model_batch[:self.ensemble_size]
-        load_model = self.model_batch[:1]
+        load_model = self.model_batch[:self.ensemble_size]
+        # load_model = self.model_batch[:1]
         for i, model in enumerate(load_model):
-            model.load_state_dict(load_ensemble['ensemble' + str(2)])
+            model.load_state_dict(load_ensemble['ensemble' + str(i+1)])
             self.ensemble_model.append(model)
         # print(self.ensemble_model)
         return self.ensemble_model
