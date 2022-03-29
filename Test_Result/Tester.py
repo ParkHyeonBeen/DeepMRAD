@@ -43,7 +43,7 @@ def hyperparameters(result_fname="0327_Walker2d-v3_esb",
 
     parser.add_argument('--add_disturbance', default=True, type=bool, help="if True, add disturbance to action")
     parser.add_argument('--disturbance_scale', default=disturbance_scale, type=float, help='choose disturbance scale')
-    parser.add_argument('--disturbance_frequency', default=[2, 4, 8], type=list, help='choose disturbance frequency')
+    parser.add_argument('--disturbance_frequency', default=[2, 4, 8, 16], type=list, help='choose disturbance frequency')
 
     # Etc
     parser.add_argument('--cpu-only', default=False, type=bool, help='force to use cpu only')

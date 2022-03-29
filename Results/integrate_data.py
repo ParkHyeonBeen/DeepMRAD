@@ -5,8 +5,8 @@ import os, argparse
 def hyperparameters():
     parser = argparse.ArgumentParser(description='Result viewer')
 
-    parser.add_argument('--watch-cost', default=True, type=bool, help='if you wanna watch cost graph, True')
-    parser.add_argument('--watch-reward', default=False, type=bool, help='if you wanna watch reward graph, True')
+    parser.add_argument('--watch-cost', default=False, type=bool, help='if you wanna watch cost graph, True')
+    parser.add_argument('--watch-reward', default=True, type=bool, help='if you wanna watch reward graph, True')
     parser.add_argument('--is-eval', default=False, type=bool, help='whether at evaluation or training')
 
     parser.add_argument('--data-type', default="normal", type=str, help="normal, path")
@@ -15,7 +15,7 @@ def hyperparameters():
     parser.add_argument('--data-index', default=4, type=int, help='data index to be viewed')
 
     parser.add_argument('--path', default="X:/env_mbrl/Results/", help='path of saved data')
-    parser.add_argument('--prev-result', default=True, type=bool, help='if previous result, True')
+    parser.add_argument('--prev-result', default=False, type=bool, help='if previous result, True')
     parser.add_argument('--prev-result-fname', default="0328_Ant-v3_esb/", help='choose the result to view')
 
     args = parser.parse_args()

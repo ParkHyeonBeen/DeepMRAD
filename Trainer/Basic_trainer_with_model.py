@@ -358,7 +358,7 @@ class Model_trainer():
                     alive_cnt += 1
                     alive = True
 
-            print("Eval of {}th episode  | Episode Reward {:.2f}, alive : {}".format(episode, eval_reward, alive))
+            # print("Eval of {}th episode  | Episode Reward {:.2f}, alive : {}".format(episode, eval_reward, alive))
             reward_list.append(eval_reward)
 
         print(

@@ -123,13 +123,16 @@ class Ensemble(nn.Module):
         torch.save(ensemble_models, path)
 
     def load_ensemble(self, path : str):
+        issingle = False
         load_ensemble = torch.load(path)
-        load_model = self.model_batch[:self.ensemble_size]
-        # load_model = self.model_batch[:1]
-        for i, model in enumerate(load_model):
-            model.load_state_dict(load_ensemble['ensemble' + str(i+1)])
-            self.ensemble_model.append(model)
-        # print(self.ensemble_model)
+        if issingle is True:
+            self.base_model.load_state_dict(load_ensemble['ensemble' + str(1)])
+            self.ensemble_model.append(self.base_model)
+        else:
+            load_model = self.model_batch[:self.ensemble_size]
+            for i, model in enumerate(load_model):
+                model.load_state_dict(load_ensemble['ensemble' + str(i+1)])
+                self.ensemble_model.append(model)
         return self.ensemble_model
 
     def _add(self, idx, data):

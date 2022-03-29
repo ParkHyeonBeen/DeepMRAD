@@ -12,7 +12,7 @@ num_test = 100
 develop_mode = 'DeepDOB'
 policy_name = "policy_current"
 develop_list = ['DeepDOB']
-model_list = ["modelBNN_current", "modelDNN_current"]
+model_list = ["modelDNN_current", "modelBNN_current"]
 save_dir = 'X:/env_mbrl/Results/Integrated_log/'
 num_dist = 40
 dist_kind = 'normal'    # 'irregular'
@@ -78,7 +78,7 @@ for mode in develop_list:
                 reward_avg, reward_max, reward_min, reward_std, alive_rate = Tester.main(args)
                 saveData = np.array([reward_avg, reward_max, reward_min, reward_std, alive_rate])
                 Tester_data.put_data(saveData)
-            Tester_data.save_data(save_dir, result_fname + '_' + mode + '_' + dist_kind)
+            Tester_data.save_data(save_dir, result_fname + '_' + model + '_' + dist_kind + '_single')
             print("finish time of" + model + ": %s" % time.strftime("%Y%m%d-%H%M%S"))
             print("elapsed time : ", time.time() - start_time)
 
