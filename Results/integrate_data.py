@@ -11,8 +11,8 @@ def hyperparameters():
 
     parser.add_argument('--data-type', default="normal", type=str, help="normal, path")
     parser.add_argument('--file-type', default=".csv", type=str, help=".csv, .npy")
-    parser.add_argument('--start-index', default=2, type=int, help='start index of plot to be viewed')
-    parser.add_argument('--data-index', default=4, type=int, help='data index to be viewed')
+    parser.add_argument('--start-index', default=100, type=int, help='start index of plot to be viewed')
+    parser.add_argument('--data-index', default=1, type=int, help='data index to be viewed')
 
     parser.add_argument('--path', default="X:/env_mbrl/Results/", help='path of saved data')
     parser.add_argument('--prev-result', default=False, type=bool, help='if previous result, True')

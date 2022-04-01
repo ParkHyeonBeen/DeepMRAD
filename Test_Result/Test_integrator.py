@@ -10,7 +10,7 @@ Tester_data = DataManager()
 result_fname = "0327_Walker2d-v3_esb"
 num_test = 100
 policy_name = "policy_current"
-develop_list = ['DeepDOB']
+develop_list = ['Basic']
 model_list = ["modelDNN_current", "modelBNN_current"]
 save_dir = 'X:/env_mbrl/Results/Integrated_log/'
 num_dist = 20
@@ -82,6 +82,6 @@ for mode in develop_list:
                 reward_avg, reward_max, reward_min, reward_std, alive_rate = Tester.main(args)
                 saveData = np.array([reward_avg, reward_max, reward_min, reward_std, alive_rate])
                 Tester_data.put_data(saveData)
-            Tester_data.save_data(save_dir, result_fname + '_' + model + '_' + dist_kind + '_single2')
+            Tester_data.save_data(save_dir, result_fname + '_' + model + '_' + dist_kind)
             print("finish time of" + model + ": %s" % time.strftime("%Y%m%d-%H%M%S"))
             print("elapsed time : ", time.time() - start_time)
