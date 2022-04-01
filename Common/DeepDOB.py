@@ -36,9 +36,9 @@ class DeepDOB:
                 state_inner = self.state
             # action step
             env_action_dob = env_action_tensor - self.disturbance_pred
-            if self.args_tester.add_noise is True:
+            if self.args_tester.add_noise is True and self.args_tester.noise_to == 'action':
                 env_action_dob = add_noise(env_action_dob, scale=self.args_tester.noise_scale)
-            if self.args_tester.add_disturbance is True:
+            if self.args_tester.add_disturbance is True and self.args_tester.disturbance_to == 'action':
                 env_action_dob = add_disturbance(env_action_dob, local_step,
                                                  self.test_env.spec.max_episode_steps,
                                                  scale=self.args_tester.disturbance_scale,
@@ -46,6 +46,13 @@ class DeepDOB:
             # real system
             env_action_real_npy = env_action_dob.cpu().detach().numpy()
             next_state_inner, reward_inner, self.done, info = self.test_env.step(env_action_real_npy, inner_loop=self.steps_inloop)
+            if self.args_tester.add_noise is True and self.args_tester.disturbance_to == 'state':
+                next_state_inner = add_noise(next_state_inner, scale=self.args_tester.noise_scale)
+            if self.args_tester.add_disturbance is True and self.args_tester.noise_to == 'state':
+                next_state_inner = add_disturbance(next_state_inner, local_step,
+                                                 self.test_env.spec.max_episode_steps,
+                                                 scale=self.args_tester.disturbance_scale,
+                                                 frequency=self.args_tester.disturbance_frequency)
             if self.done is True:
                 break
             reward += reward_inner

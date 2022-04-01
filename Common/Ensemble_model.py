@@ -126,6 +126,7 @@ class Ensemble(nn.Module):
         issingle = False
         load_ensemble = torch.load(path)
         if issingle is True:
+            print("use only one model in ensemble list")
             self.base_model.load_state_dict(load_ensemble['ensemble' + str(1)])
             self.ensemble_model.append(self.base_model)
         else:

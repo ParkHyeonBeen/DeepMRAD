@@ -157,18 +157,20 @@ def inv_softsign(y):
     x = np.where(y >= 0, y/(1-y), y/(1+y))
     return x
 
-def add_noise(action, scale = 0.1):
-    for i in range(len(action)):
-        action[i] += scale*np.random.normal()
-    return action
+def add_noise(val, scale = 0.1):
+    for i in range(len(val)):
+        alpha = scale*np.random.normal()
+        val[i] += alpha
+    return val
 
-def add_disturbance(action, step, terminal_time, scale = 0.1, frequency = None):
+def add_disturbance(val, step, terminal_time, scale = 0.1, frequency = None):
     if frequency is None:
         frequency = [2, 4, 8]
 
-    for i in range(len(action)):
-        action[i] += scale*math.sin((random.choice(frequency)*math.pi / terminal_time)*step)
-    return action
+    for i in range(len(val)):
+        alpha = scale*math.sin((random.choice(frequency)*math.pi / terminal_time)*step)
+        val[i] += alpha
+    return val
 
 ## related to saved data ##
 

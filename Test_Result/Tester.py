@@ -12,8 +12,9 @@ sys.path.append(str(Path('Tester.py').parent.absolute()))   # 절대 경로에 �
 def hyperparameters(result_fname="0327_Walker2d-v3_esb",
                     num_test=100,
                     develop_mode='DeepDOB',
-                    disturbance_scale=0.0,
                     noise_scale=0.0,
+                    disturbance_scale=0.0,
+                    add_to='state',
                     policy_name="policy_current",
                     model_name="modelBNN_current"
                     ):
@@ -39,9 +40,11 @@ def hyperparameters(result_fname="0327_Walker2d-v3_esb",
 
     # setting real world
     parser.add_argument('--add_noise', default=True, type=bool, help="if True, add noise to action")
+    parser.add_argument('--noise_to', default=add_to, help="state, action")
     parser.add_argument('--noise_scale', default=noise_scale, type=float, help='white noise having the noise scale')
 
     parser.add_argument('--add_disturbance', default=True, type=bool, help="if True, add disturbance to action")
+    parser.add_argument('--disturbance_to', default=add_to, help="state, action")
     parser.add_argument('--disturbance_scale', default=disturbance_scale, type=float, help='choose disturbance scale')
     parser.add_argument('--disturbance_frequency', default=[2, 4, 8, 16], type=list, help='choose disturbance frequency')
 
@@ -74,6 +77,11 @@ def main(args_tester):
     random_seed = set_seed(args.random_seed)
     env, test_env = gym_env(env_name, random_seed)
     algorithm.actor.load_state_dict(torch.load(path_policy))
+
+    print('develop-mode:', args_tester.develop_mode)
+    print('noise scale:', args_tester.noise_scale, 'disturbance scale:', args_tester.disturbance_scale)
+    print('modelnet_name:', args_tester.modelnet_name)
+
 
     if args_tester.develop_mode == 'Basic':
         trainer = Basic_trainer(

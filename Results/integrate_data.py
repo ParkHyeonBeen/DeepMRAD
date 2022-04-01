@@ -5,8 +5,8 @@ import os, argparse
 def hyperparameters():
     parser = argparse.ArgumentParser(description='Result viewer')
 
-    parser.add_argument('--watch-cost', default=False, type=bool, help='if you wanna watch cost graph, True')
-    parser.add_argument('--watch-reward', default=True, type=bool, help='if you wanna watch reward graph, True')
+    parser.add_argument('--watch-cost', default=True, type=bool, help='if you wanna watch cost graph, True')
+    parser.add_argument('--watch-reward', default=False, type=bool, help='if you wanna watch reward graph, True')
     parser.add_argument('--is-eval', default=False, type=bool, help='whether at evaluation or training')
 
     parser.add_argument('--data-type', default="normal", type=str, help="normal, path")
@@ -25,7 +25,7 @@ def hyperparameters():
 def main(args):
 
     if args.prev_result is False:
-        path_base = args.path + 'Result/saved_log/'
+        path_base = args.path + 'Result2/saved_log/'
     else:
         path_base = args.path + 'storage/' + args.prev_result_fname + 'saved_log/'
     i = args.start_index

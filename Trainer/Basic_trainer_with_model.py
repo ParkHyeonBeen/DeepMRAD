@@ -329,14 +329,22 @@ class Model_trainer():
                 if self.args_tester.develop_mode == 'DeepDOB':
                     next_observation, reward, done, _ = self.deepdob.step(env_action, self.local_step)
                 else:
-                    if self.args_tester.add_noise is True:
+                    if self.args_tester.add_noise is True and self.args_tester.noise_to == 'action':
                         env_action = add_noise(env_action, scale=self.args_tester.noise_scale)
-                    if self.args_tester.add_disturbance is True:
+                    if self.args_tester.add_disturbance is True and self.args_tester.disturbance_to == 'action':
                         env_action = add_disturbance(env_action, self.local_step,
                                                      self.env.spec.max_episode_steps,
                                                      scale=self.args_tester.disturbance_scale,
                                                      frequency=self.args_tester.disturbance_frequency)
                     next_observation, reward, done, _ = self.test_env.step(env_action)
+
+                    if self.args_tester.add_noise is True and self.args_tester.disturbance_to == 'state':
+                        next_observation = add_noise(next_observation, scale=self.args_tester.noise_scale)
+                    if self.args_tester.add_disturbance is True and self.args_tester.noise_to == 'state':
+                        next_observation = add_disturbance(next_observation, self.local_step,
+                                                           self.test_env.spec.max_episode_steps,
+                                                           scale=self.args_tester.disturbance_scale,
+                                                           frequency=self.args_tester.disturbance_frequency)
 
                 if self.args_tester.develop_mode == 'MRAP':
                     loss += self.mrap.eval_error(observation, action, next_observation)

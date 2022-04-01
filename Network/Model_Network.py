@@ -117,21 +117,14 @@ class DynamicsNetwork(nn.Module):
         mse = 0.0
         kl = 0.0
 
-        if self.net_type == "DNN":
-            z = self.forward(state, action)
-            state_d = F.softsign(state_d)
-            mse = self.mse_loss(z, state_d)
-            kl = self.kl_loss(self.dnmsNN)
-            cost = mse + self.kl_weight * kl
+        z = self.forward(state, action)
+        state_d = F.softsign(state_d)
+        mse = self.mse_loss(z, state_d)
+        kl = self.kl_loss(self.dnmsNN)
+        cost = mse + self.kl_weight * kl
 
-        if self.net_type == "BNN":
-            freeze(self.dnmsNN)
-            z = self.forward(state, action)
-            state_d = F.softsign(state_d)
-            mse = self.mse_loss(z, state_d)
-            kl = self.kl_loss(self.dnmsNN)
-            cost = mse + self.kl_weight * kl
-            unfreeze(self.dnmsNN)
+        # if self.net_type == "BNN":
+        #     unfreeze(self.dnmsNN)
 
         cost = cost.cpu().detach().numpy()
         mse = mse.cpu().detach().numpy()
@@ -245,19 +238,10 @@ class InverseDynamicsNetwork(nn.Module):
         mse = 0.0
         kl = 0.0
 
-        if self.net_type == "DNN":
-            z = self.forward(state_d, next_state)
-            mse = self.mse_loss(z, action)
-            kl = self.kl_loss(self.inv_dnmsNN)
-            cost = mse + self.kl_weight * kl
-
-        if self.net_type == "BNN":
-            freeze(self.inv_dnmsNN)
-            z = self.forward(state_d, next_state)
-            mse = self.mse_loss(z, action)
-            kl = self.kl_loss(self.inv_dnmsNN)
-            cost = mse + self.kl_weight * kl
-            unfreeze(self.inv_dnmsNN)
+        z = self.forward(state_d, next_state)
+        mse = self.mse_loss(z, action)
+        kl = self.kl_loss(self.inv_dnmsNN)
+        cost = mse + self.kl_weight * kl
 
         cost = cost.cpu().detach().numpy()
         mse = mse.cpu().detach().numpy()
