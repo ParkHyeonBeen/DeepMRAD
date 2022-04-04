@@ -2,7 +2,7 @@ import argparse, sys
 from pathlib import Path
 import torch
 
-sys.path.append(str(Path('run_SACv2.py').parent.absolute()))   # 절대 경로에 추가
+sys.path.append(str(Path(__file__).parent.parent.absolute()))   # 절대 경로에 추가
 
 from Algorithm.SAC_v2 import SAC_v2
 from Algorithm.ImageRL.SAC import ImageSAC_v2
@@ -78,7 +78,7 @@ def hyperparameters():
     parser.add_argument('--inv-model-kl-weight', default=0.1, type=float)
 
     # save path
-    parser.add_argument('--path', default="X:/env_mbrl/Results/Result/", help='path for save')
+    parser.add_argument('--path', default="/media/phb/Storage/env_mbrl/Results/Result/", help='path for save')
 
     args = parser.parse_args()
 

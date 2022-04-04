@@ -1,21 +1,18 @@
-import time
-
-import numpy as np
 import Tester
-from Tester import hyperparameters
 from Common.Utils import *
+from Tester import hyperparameters
 
 Tester_data = DataManager()
 
-result_fname = "0327_Walker2d-v3_esb"
+result_fname = "0331_Ant-v3_esb"
 num_test = 100
-policy_name = "policy_current"
-develop_list = ['Basic']
-model_list = ["modelDNN_current", "modelBNN_current"]
-save_dir = 'X:/env_mbrl/Results/Integrated_log/'
-num_dist = 20
+policy_name = "policy_best"
+develop_list = ['DeepDOB']
+model_list = ["modelBNN_current", "modelDNN_current"]
+save_dir = '/media/phb/Storage/env_mbrl/Results/Integrated_log/'
+num_dist = 40
 dist_kind = 'normal'    # 'normal', 'irregular'
-add_to = 'state'
+add_to = 'action'
 
 print("result name:", result_fname)
 print("action range: +-1")
@@ -28,7 +25,7 @@ for mode in develop_list:
     if mode == 'Basic':
         print("start Basic PG algorithm")
         Tester_data.init_data()
-        for i in np.linspace(0, 0.1, num_dist+1):
+        for i in np.linspace(0, 1, num_dist+1):
             # print("current external force scale :", i)
             if dist_kind == 'irregular':
                 args = hyperparameters(result_fname=result_fname,
@@ -59,7 +56,7 @@ for mode in develop_list:
             start_time = time.time()
             print("The model to test :", model)
             Tester_data.init_data()
-            for i in np.linspace(0, 0.1, num_dist+1):
+            for i in np.linspace(0, 1, num_dist+1):
                 # print("current external force scale :", i)
                 if dist_kind == 'irregular':
                     args = hyperparameters(result_fname=result_fname,

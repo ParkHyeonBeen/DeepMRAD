@@ -6,17 +6,17 @@ def hyperparameters():
     parser = argparse.ArgumentParser(description='Result viewer')
 
     parser.add_argument('--watch-cost', default=True, type=bool, help='if you wanna watch cost graph, True')
-    parser.add_argument('--watch-reward', default=False, type=bool, help='if you wanna watch reward graph, True')
+    parser.add_argument('--watch-reward', default=True, type=bool, help='if you wanna watch reward graph, True')
     parser.add_argument('--is-eval', default=False, type=bool, help='whether at evaluation or training')
 
     parser.add_argument('--data-type', default="normal", type=str, help="normal, path")
     parser.add_argument('--file-type', default=".csv", type=str, help=".csv, .npy")
-    parser.add_argument('--start-index', default=100, type=int, help='start index of plot to be viewed')
-    parser.add_argument('--data-index', default=1, type=int, help='data index to be viewed')
+    parser.add_argument('--start-index', default=2, type=int, help='start index of plot to be viewed')
+    parser.add_argument('--data-index', default=4, type=int, help='data index to be viewed')
 
-    parser.add_argument('--path', default="X:/env_mbrl/Results/", help='path of saved data')
-    parser.add_argument('--prev-result', default=False, type=bool, help='if previous result, True')
-    parser.add_argument('--prev-result-fname', default="0328_Ant-v3_esb/", help='choose the result to view')
+    parser.add_argument('--path', default="/media/phb/Storage/env_mbrl/Results/", help='path of saved data')
+    parser.add_argument('--prev-result', default=True, type=bool, help='if previous result, True')
+    parser.add_argument('--prev-result-fname', default="0331_Ant-v3_esb/", help='choose the result to view')
 
     args = parser.parse_args()
 
@@ -38,7 +38,6 @@ def main(args):
                 path = path_base + 'Eval_' + str(i) + args.file_type
             else:
                 path = path_base + 'Eval_by' + str(i) + args.file_type
-
             isfile = os.path.isfile(path)
             if isfile is False:
                 break

@@ -1,15 +1,13 @@
-import argparse, sys, os
-import torch
+import sys, os
 from pathlib import Path
 
-from Algorithm import *
-from Trainer import *
+sys.path.append(str(Path(__file__).parent.parent.absolute()))   # 절대 경로에 추가
+sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))
+
 from Example import *
 from Common.Utils import set_seed, gym_env
 
-sys.path.append(str(Path('Tester.py').parent.absolute()))   # 절대 경로에 추가
-
-def hyperparameters(result_fname="0327_Walker2d-v3_esb",
+def hyperparameters(result_fname="0331_Ant-v3_esb",
                     num_test=100,
                     develop_mode='DeepDOB',
                     noise_scale=0.0,
@@ -31,7 +29,7 @@ def hyperparameters(result_fname="0327_Walker2d-v3_esb",
     parser.add_argument('--test-episode', default=num_test, type=int, help='Number of episodes to perform evaluation')
 
     # result to watch
-    parser.add_argument('--path', default="X:/env_mbrl/Results/", help='path for save')
+    parser.add_argument('--path', default="/media/phb/Storage/env_mbrl/Results/", help='path for save')
     parser.add_argument('--result-index', default="Result/", help='result to check')
     parser.add_argument('--prev-result', default=True, type=bool, help='if previous result, True')
     parser.add_argument('--prev-result-fname', default=result_fname, help='choose the result to view')
