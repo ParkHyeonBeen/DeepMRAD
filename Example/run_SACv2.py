@@ -1,8 +1,8 @@
-import argparse, sys
+import argparse, sys, os
 from pathlib import Path
 import torch
 
-sys.path.append(str(Path(__file__).parent.parent.absolute()))   # 절대 경로에 추가
+sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))
 
 from Algorithm.SAC_v2 import SAC_v2
 from Algorithm.ImageRL.SAC import ImageSAC_v2
@@ -15,12 +15,12 @@ def hyperparameters():
 
     # note in txt
     parser.add_argument('--note',
-                        default="train for no ensemble model in walker2d",
+                        default="train for 5 ensemble among 5 models in ",
                         type=str, help='note about what to change')
 
     #environment
     parser.add_argument('--domain-type', default='gym', type=str, help='gym or dmc, dmc/image')
-    parser.add_argument('--env-name', default='Ant-v3', help='Pendulum-v0, MountainCarContinuous-v0')
+    parser.add_argument('--env-name', default='HalfCheetah-v3', help='Pendulum-v0, MountainCarContinuous-v0')
     parser.add_argument('--discrete', default=False, type=bool, help='Always Continuous')
     parser.add_argument('--render', default=False, type=bool)
     parser.add_argument('--training-start', default=1000, type=int, help='First step to start training')

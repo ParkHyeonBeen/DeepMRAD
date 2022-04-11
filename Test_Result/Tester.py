@@ -7,12 +7,12 @@ sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))
 from Example import *
 from Common.Utils import set_seed, gym_env
 
-def hyperparameters(result_fname="0331_Ant-v3_esb",
-                    num_test=100,
+def hyperparameters(result_fname="0407_HalfCheetah-v3_esb",
+                    num_test=1,
                     develop_mode='DeepDOB',
                     noise_scale=0.0,
                     disturbance_scale=0.0,
-                    add_to='state',
+                    add_to='action',
                     policy_name="policy_current",
                     model_name="modelBNN_current"
                     ):
@@ -44,7 +44,7 @@ def hyperparameters(result_fname="0331_Ant-v3_esb",
     parser.add_argument('--add_disturbance', default=True, type=bool, help="if True, add disturbance to action")
     parser.add_argument('--disturbance_to', default=add_to, help="state, action")
     parser.add_argument('--disturbance_scale', default=disturbance_scale, type=float, help='choose disturbance scale')
-    parser.add_argument('--disturbance_frequency', default=[2, 4, 8, 16], type=list, help='choose disturbance frequency')
+    parser.add_argument('--disturbance_frequency', default=[4], type=list, help='choose disturbance frequency')
 
     # Etc
     parser.add_argument('--cpu-only', default=False, type=bool, help='force to use cpu only')
@@ -78,6 +78,7 @@ def main(args_tester):
 
     print('develop-mode:', args_tester.develop_mode)
     print('noise scale:', args_tester.noise_scale, 'disturbance scale:', args_tester.disturbance_scale)
+    print('policy_name:', args_tester.policynet_name)
     print('modelnet_name:', args_tester.modelnet_name)
 
 

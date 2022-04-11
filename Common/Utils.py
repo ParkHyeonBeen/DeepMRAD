@@ -19,8 +19,9 @@ _EPS4 = _FLOAT_EPS * 4.0
 sys.path.append(str(Path('Utils.py').parent.absolute()))  # 절대 경로에 추가
 
 class DataManager:
-    def __init__(self, path_dim=2):
+    def __init__(self, path_dim=2, data_name=None):
         self.data = None
+        self.data_name = data_name
         self.path_dim = path_dim
         self.path_data = np.empty([1, path_dim])
 
@@ -43,6 +44,8 @@ class DataManager:
     def plot_data(self, obs, label=None):
         self.put_data(obs)
         if label is None:
+            if self.data_name is not None:
+                plt.figure(self.data_name)
             plt.plot(self.data)
         else:
             plt.plot(self.data, label=label)
@@ -157,20 +160,25 @@ def inv_softsign(y):
     x = np.where(y >= 0, y/(1-y), y/(1+y))
     return x
 
+
 def add_noise(val, scale = 0.1):
+    alpha_list = []
     for i in range(len(val)):
         alpha = scale*np.random.normal()
+        alpha_list.append(alpha)
         val[i] += alpha
-    return val
+    return val, np.array(alpha_list)
 
 def add_disturbance(val, step, terminal_time, scale = 0.1, frequency = None):
+    alpha_list = []
     if frequency is None:
         frequency = [2, 4, 8]
 
     for i in range(len(val)):
         alpha = scale*math.sin((random.choice(frequency)*math.pi / terminal_time)*step)
+        alpha_list.append(alpha)
         val[i] += alpha
-    return val
+    return val, np.array(alpha_list)
 
 ## related to saved data ##
 

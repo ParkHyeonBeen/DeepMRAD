@@ -330,18 +330,18 @@ class Model_trainer():
                     next_observation, reward, done, _ = self.deepdob.step(env_action, self.local_step)
                 else:
                     if self.args_tester.add_noise is True and self.args_tester.noise_to == 'action':
-                        env_action = add_noise(env_action, scale=self.args_tester.noise_scale)
+                        env_action, _ = add_noise(env_action, scale=self.args_tester.noise_scale)
                     if self.args_tester.add_disturbance is True and self.args_tester.disturbance_to == 'action':
-                        env_action = add_disturbance(env_action, self.local_step,
+                        env_action, _ = add_disturbance(env_action, self.local_step,
                                                      self.env.spec.max_episode_steps,
                                                      scale=self.args_tester.disturbance_scale,
                                                      frequency=self.args_tester.disturbance_frequency)
                     next_observation, reward, done, _ = self.test_env.step(env_action)
 
-                    if self.args_tester.add_noise is True and self.args_tester.disturbance_to == 'state':
-                        next_observation = add_noise(next_observation, scale=self.args_tester.noise_scale)
-                    if self.args_tester.add_disturbance is True and self.args_tester.noise_to == 'state':
-                        next_observation = add_disturbance(next_observation, self.local_step,
+                    if self.args_tester.add_noise is True and self.args_tester.noise_to == 'state':
+                        next_observation, _ = add_noise(next_observation, scale=self.args_tester.noise_scale)
+                    if self.args_tester.add_disturbance is True and self.args_tester.disturbance_to == 'state':
+                        next_observation, _ = add_disturbance(next_observation, self.local_step,
                                                            self.test_env.spec.max_episode_steps,
                                                            scale=self.args_tester.disturbance_scale,
                                                            frequency=self.args_tester.disturbance_frequency)
@@ -366,7 +366,7 @@ class Model_trainer():
                     alive_cnt += 1
                     alive = True
 
-            # print("Eval of {}th episode  | Episode Reward {:.2f}, alive : {}".format(episode, eval_reward, alive))
+            print("Eval of {}th episode  | Episode Reward {:.2f}, alive : {}".format(episode, eval_reward, alive))
             reward_list.append(eval_reward)
 
         print(
@@ -374,6 +374,8 @@ class Model_trainer():
                 sum(reward_list) / len(reward_list), max(reward_list), min(reward_list), np.std(reward_list),
                 100 * (alive_cnt / self.test_episode)))
         self.test_env.close()
+        # if self.args_tester.develop_mode == 'DeepDOB':
+        #     self.deepdob.save_data()
         return sum(reward_list) / len(reward_list),\
                max(reward_list), min(reward_list),\
                np.std(reward_list),\

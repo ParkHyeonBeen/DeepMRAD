@@ -6,17 +6,17 @@ def hyperparameters():
     parser = argparse.ArgumentParser(description='Result viewer')
 
     parser.add_argument('--watch-cost', default=True, type=bool, help='if you wanna watch cost graph, True')
-    parser.add_argument('--watch-reward', default=True, type=bool, help='if you wanna watch reward graph, True')
-    parser.add_argument('--is-eval', default=False, type=bool, help='whether at evaluation or training')
+    parser.add_argument('--watch-reward', default=False, type=bool, help='if you wanna watch reward graph, True')
+    parser.add_argument('--is-eval', default=True, type=bool, help='whether at evaluation or training')
 
     parser.add_argument('--data-type', default="normal", type=str, help="normal, path")
     parser.add_argument('--file-type', default=".csv", type=str, help=".csv, .npy")
-    parser.add_argument('--start-index', default=2, type=int, help='start index of plot to be viewed')
+    parser.add_argument('--start-index', default=190, type=int, help='start index of plot to be viewed')
     parser.add_argument('--data-index', default=4, type=int, help='data index to be viewed')
 
     parser.add_argument('--path', default="/media/phb/Storage/env_mbrl/Results/", help='path of saved data')
     parser.add_argument('--prev-result', default=True, type=bool, help='if previous result, True')
-    parser.add_argument('--prev-result-fname', default="0331_Ant-v3_esb/", help='choose the result to view')
+    parser.add_argument('--prev-result-fname', default="0407_HalfCheetah-v3_esb/", help='choose the result to view')
 
     args = parser.parse_args()
 
@@ -25,7 +25,7 @@ def hyperparameters():
 def main(args):
 
     if args.prev_result is False:
-        path_base = args.path + 'Result2/saved_log/'
+        path_base = args.path + 'Result/saved_log/'
     else:
         path_base = args.path + 'storage/' + args.prev_result_fname + 'saved_log/'
     i = args.start_index
@@ -44,12 +44,16 @@ def main(args):
             print(path)
             file = np.loadtxt(path, skiprows=1, delimiter = ',', dtype ='float')
             cost_data_ = np.asfarray(np.array(file[:, args.data_index]), float)
+            if args.is_eval is True:
+                cost_data_ = np.sqrt(cost_data_)
+
             if i == 1:
                 cost_data = cost_data_
             else:
                 cost_data = np.hstack((cost_data, cost_data_))
             i += 1
 
+        print(np.mean(cost_data[1:]))
         plt.figure('cost' + str(args.data_index))
         plt.plot(cost_data)
     else:
