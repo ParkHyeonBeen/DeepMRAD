@@ -1,7 +1,5 @@
-import torch
-import torch.nn as nn
-
 from Common.Ensemble_model import Ensemble
+from Common.Utils import *
 from Network.Model_Network import *
 
 def save_model(network, fname : str, root : str):
@@ -13,66 +11,67 @@ def save_model(network, fname : str, root : str):
         torch.save(network.state_dict(), root + "saved_net/model/Etc/" + fname)
 
 
-def create_models(state_dim, action_dim, frameskip, algorithm, args, dnn=True, bnn=True, ensemble_mode=False):
+def create_models(state_dim, action_dim, frameskip, algorithm, args, args_tester,
+                  buffer=None, dnn=True, bnn=True, ensemble_mode=False):
 
     model_net_DNN = None
     inv_model_net_DNN = None
     model_net_BNN = None
     inv_model_net_BNN = None
 
+    if args_tester is not None:
+        ensemble_size = args_tester.ensemble_size
+    else:
+        ensemble_size = args.ensemble_size
+
     if ensemble_mode is True:
-        if dnn is True:
-            model_net_DNN = Ensemble(
-                DynamicsNetwork(state_dim, action_dim, frameskip, algorithm, args, net_type="DNN"),
-                score_len=args.eval_episode, ensemble_size=args.ensemble_size, model_batch_size=args.model_batch_size)
-            inv_model_net_DNN = Ensemble(
-                InverseDynamicsNetwork(state_dim, action_dim, frameskip, algorithm, args, net_type="DNN"),
-                score_len=args.eval_episode, ensemble_size=args.ensemble_size, model_batch_size=args.model_batch_size)
-        if bnn is True:
-            model_net_BNN = Ensemble(
-                DynamicsNetwork(state_dim, action_dim, frameskip, algorithm, args, net_type="BNN"),
-                score_len=args.eval_episode, ensemble_size=args.ensemble_size, model_batch_size=args.model_batch_size)
-            inv_model_net_BNN = Ensemble(
-                InverseDynamicsNetwork(state_dim, action_dim, frameskip, algorithm, args, net_type="BNN"),
-                score_len=args.eval_episode, ensemble_size=args.ensemble_size, model_batch_size=args.model_batch_size)
+        if dnn is True and args.develop_mode != 'DeepDOB':
+            model_net_DNN = Ensemble('modelNN', state_dim, action_dim, frameskip, algorithm, args,
+                                     buffer=buffer, net_type="DNN", score_len=args.eval_episode,
+                                     ensemble_size=ensemble_size, model_batch_size=args.model_batch_size)
+        if dnn is True and args.develop_mode != 'MRAP':
+            inv_model_net_DNN = Ensemble('inv_modelNN', state_dim, action_dim, frameskip, algorithm, args,
+                                         buffer=buffer, net_type="DNN", score_len=args.eval_episode,
+                                         ensemble_size=ensemble_size, model_batch_size=args.model_batch_size)
+        if bnn is True and args.develop_mode != 'DeepDOB':
+            model_net_BNN = Ensemble('modelNN', state_dim, action_dim, frameskip, algorithm, args,
+                                     buffer=buffer, net_type="BNN", score_len=args.eval_episode,
+                                     ensemble_size=ensemble_size, model_batch_size=args.model_batch_size)
+        if bnn is True and args.develop_mode != 'MRAP':
+            inv_model_net_BNN = Ensemble('inv_modelNN', state_dim, action_dim, frameskip, algorithm, args,
+                                         buffer=buffer, net_type="BNN", score_len=args.eval_episode,
+                                         ensemble_size=ensemble_size, model_batch_size=args.model_batch_size)
     else:
-        if dnn is True:
-            model_net_DNN = DynamicsNetwork(state_dim, action_dim, frameskip, algorithm, args, net_type="DNN")
-            inv_model_net_DNN = InverseDynamicsNetwork(state_dim, action_dim, frameskip, algorithm, args, net_type="DNN")
-        if bnn is True:
-            model_net_BNN = DynamicsNetwork(state_dim, action_dim, frameskip, algorithm, args, net_type="BNN")
-            inv_model_net_BNN = InverseDynamicsNetwork(state_dim, action_dim, frameskip, algorithm, args, net_type="BNN")
+        if dnn is True and args.develop_mode != 'DeepDOB':
+            model_net_DNN = DynamicsNetwork(state_dim, action_dim, frameskip, algorithm, args,
+                                            buffer=buffer, net_type="DNN")
+        if dnn is True and args.develop_mode != 'MRAP':
+            inv_model_net_DNN = InverseDynamicsNetwork(state_dim, action_dim, frameskip, algorithm, args,
+                                                       buffer=buffer, net_type="DNN")
+        if bnn is True and args.develop_mode != 'DeepDOB':
+            model_net_BNN = DynamicsNetwork(state_dim, action_dim, frameskip, algorithm, args,
+                                            buffer=buffer, net_type="BNN")
+        if bnn is True and args.develop_mode != 'MRAP':
+            inv_model_net_BNN = InverseDynamicsNetwork(state_dim, action_dim, frameskip, algorithm, args,
+                                                       buffer=buffer, net_type="BNN")
 
-    if dnn is True and bnn is not True:
-        return model_net_DNN, inv_model_net_DNN
-    elif dnn is not True and bnn is True:
-        return model_net_BNN, inv_model_net_BNN
-    elif dnn is True and bnn is True:
-        return model_net_DNN, model_net_BNN, inv_model_net_DNN, inv_model_net_BNN
-    else:
-        raise Exception("True at least one model")
+    return list(filter(None, [model_net_DNN, inv_model_net_DNN, model_net_BNN, inv_model_net_BNN]))
 
-
-def eval_models(state, action, next_state, *models):
-    cost_list = []
-    mse_list = []
-    kl_list = []
+def eval_models(state, action, next_state, models):
+    error_list = []
     for model in models:
-        _cost, _mse, _kl = model.eval_model(state, action, next_state)
-        cost_list.append(_cost)
-        mse_list.append(_mse)
-        kl_list.append(_kl)
+        _error = model.eval_model(state, action, next_state)
+        error_list.append(_error)
+    errors = np.hstack(error_list)
+    return errors
 
-    costs = np.hstack(cost_list)
-    mses = np.hstack(mse_list)
-    kls = np.hstack(kl_list)
-
-    return costs, mses, kls
-
-def train_alls(training_step, *models):
+def train_alls(training_step, models):
     cost_list = []
     mse_list = []
     kl_list = []
+
+    if len(models) == 0:
+        raise Exception("your models is empty now")
 
     for model in models:
         _cost, _mse, _kl = model.train_all(training_step)
@@ -86,27 +85,46 @@ def train_alls(training_step, *models):
 
     return costs, mses, kls
 
-def save_models(args, cost, eval_cost, path, *models):
+def save_models(args, loss, eval_loss, path, models):
+    print(loss, eval_loss)
 
-    name_list = ["modelDNN", "modelBNN", "invmodelDNN", "invmodelBNN"]
+    if args.develop_mode == "DeepDOB":
+        if args.net_type == "DNN":
+            name_list = ["invmodelDNN"]
+        elif args.net_type == "BNN":
+            name_list = ["invmodelBNN"]
+        else:
+            name_list = ["invmodelDNN", "invmodelBNN"]
+    elif args.develop_mode == "MRAP":
+        if args.net_type == "DNN":
+            name_list = ["modelDNN"]
+        elif args.net_type == "BNN":
+            name_list = ["modelBNN"]
+        else:
+            name_list = ["modelDNN", "modelBNN"]
+    else:
+        name_list = ["modelDNN", "modelBNN", "invmodelDNN", "invmodelBNN"]
+
+    if len(name_list) != len(models) or len(models) == 0:
+        raise Exception("your models is empty now")
 
     if args.ensemble_mode is True:
         for i, model in enumerate(models):
-            if cost[i] > eval_cost[i]:
-                model.save_ensemble(name_list[i] + "_better", path)
-                return [i, eval_cost[i]]
+            if loss[i] > eval_loss[i]:
+                model.save_ensemble(name_list[i] + "_esb_better", path)
+                return [i, eval_loss[i]]
             else:
-                model.save_ensemble(name_list[i] + "_current", path)
+                model.save_ensemble(name_list[i] + "_esb_current", path)
 
     else:
         for i, model in enumerate(models):
-            if cost[i] > eval_cost[i]:
+            if loss[i] > eval_loss[i]:
                 save_model(model, name_list[i] + "_better", path)
-                return [i, eval_cost[i]]
+                return [i, eval_loss[i]]
             else:
                 save_model(model, name_list[i] + "_current", path)
 
-def load_models(args_tester, model_net, inv_model_net, ensemble_mode=False):
+def load_models(args_tester, model, ensemble_mode=False):
 
     path = args_tester.path
     path_model = None
@@ -129,8 +147,35 @@ def load_models(args_tester, model_net, inv_model_net, ensemble_mode=False):
             path_invmodel = path + args_tester.result_index + "saved_net/model/BNN/inv" + args_tester.modelnet_name
 
     if ensemble_mode is True:
-        model_net.load_ensemble(path_model)
-        inv_model_net.load_ensemble(path_invmodel)
+        if args_tester.develop_mode == "MRAP":
+            model.load_ensemble(path_model, args_tester.ensemble_size)
+        if args_tester.develop_mode == "DeepDOB":
+            model.load_ensemble(path_invmodel, args_tester.ensemble_size)
     else:
-        model_net.load_state_dict(torch.load(path_model))
-        inv_model_net.load_state_dict(torch.load(path_invmodel))
+        if args_tester.develop_mode == "MRAP":
+            model.load_state_dict(torch.load(path_model))
+        if args_tester.develop_mode == "DeepDOB":
+            model.load_state_dict(torch.load(path_invmodel))
+
+
+def validate_measure(error_list):
+    error_max = np.max(error_list, axis=0)
+    mean = np.mean(error_list, axis=0)
+    std = np.std(error_list, axis=0)
+    loss = np.sqrt(mean**2 + std**2)
+
+    return [loss, mean, std, error_max]
+
+def get_random_action_batch(observation, env_action, test_env, model_buffer, max_action, min_action):
+
+    env_action_noise, _ = add_noise(env_action, scale=0.1)
+    action_noise = normalize(env_action_noise, max_action, min_action)
+    next_observation, reward, done, info = test_env.step(env_action_noise)
+    model_buffer.add(observation, action_noise, reward, next_observation, float(done))
+
+def set_sync_env(env, test_env):
+
+    position = env.sim.data.qpos.flat.copy()
+    velocity = env.sim.data.qvel.flat.copy()
+
+    test_env.set_state(position, velocity)

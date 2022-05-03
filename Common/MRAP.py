@@ -37,7 +37,9 @@ class MRAP:
         error_softsign = F.softsign(state_d) - state_d_pred
         max_error = max(abs(error_softsign))
 
-        print("update rate : ", self.update_step , "/", self.num_update)
+        self.MRAP_data.plot_data(max_error.cpu().detach().numpy())
+
+        # print("update rate : ", self.update_step , "/", self.num_update)
 
         if self._is_need_update(max_error):
             self.update_cycle(max_error, self.bound)
@@ -76,12 +78,12 @@ class MRAP:
 
         # plot_data(self.actor.network_outer.weight[0].cpu().detach().numpy())
 
-        loss = F.mse_loss(input=error, target=torch.zeros_like(error).cuda())
-        self.MRAP_data.plot_data(loss.cpu().detach().numpy())
+        loss = torch.sqrt(F.mse_loss(input=error, target=torch.zeros_like(error).cuda()))
+        # self.MRAP_data.plot_data(loss.cpu().detach().numpy())
 
-        outlayer_optimizer.zero_grad()
-        loss.backward()
-        outlayer_optimizer.step()
+        # outlayer_optimizer.zero_grad()
+        # loss.backward()
+        # outlayer_optimizer.step()
 
         return loss
 

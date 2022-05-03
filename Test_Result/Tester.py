@@ -5,52 +5,56 @@ sys.path.append(str(Path(__file__).parent.parent.absolute()))   # 절대 경로�
 sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))
 
 from Example import *
-from Common.Utils import set_seed, gym_env
+from Common.Utils import *
 
 def hyperparameters(result_fname="0407_HalfCheetah-v3_esb",
-                    num_test=1,
-                    develop_mode='DeepDOB',
+                    num_test=5,
                     noise_scale=0.0,
                     disturbance_scale=0.0,
+                    disturbance_freq=4,
                     add_to='action',
-                    policy_name="policy_current",
-                    model_name="modelBNN_current"
+                    policy_name="policy_best",
+                    model_name="modelBNN_better"
                     ):
 
     parser = argparse.ArgumentParser(description='Tester of algorithms')
 
     # related to development
-    parser.add_argument('--test-on', default=True, type=bool, help="You must turn on when you test")
-    parser.add_argument('--develop-mode', default=develop_mode, help="Basic, DeepDOB, MRAP")
+    parser.add_argument('--test-on', default='False', type=str2bool, help="You must turn on when you test")
+    parser.add_argument('--develop-mode', '-dm', default='Basic', help="Basic, DeepDOB, MRAP")
     parser.add_argument('--frameskip_inner', default=1, type=int, help='frame skip in inner loop ')
 
     # environment
-    parser.add_argument('--render', default=False, type=bool)
+    parser.add_argument('--render', default='False', type=str2bool)
     parser.add_argument('--test-episode', default=num_test, type=int, help='Number of episodes to perform evaluation')
 
     # result to watch
     parser.add_argument('--path', default="/media/phb/Storage/env_mbrl/Results/", help='path for save')
-    parser.add_argument('--result-index', default="Result/", help='result to check')
-    parser.add_argument('--prev-result', default=True, type=bool, help='if previous result, True')
+    parser.add_argument('--result-index', default="Result2/", help='result to check')
+    parser.add_argument('--prev-result', default='True', type=str2bool, help='if previous result, True')
     parser.add_argument('--prev-result-fname', default=result_fname, help='choose the result to view')
     parser.add_argument('--modelnet-name', default=model_name, help='modelDNN_better, modelBNN_better')
     parser.add_argument('--policynet-name', default=policy_name, help='best, better, current, total')
+    parser.add_argument('--ensemble-size', default=3, type=int, help="ensemble size")
 
     # setting real world
-    parser.add_argument('--add_noise', default=True, type=bool, help="if True, add noise to action")
+    parser.add_argument('--add_noise', default='False', type=str2bool, help="if True, add noise to action")
     parser.add_argument('--noise_to', default=add_to, help="state, action")
     parser.add_argument('--noise_scale', default=noise_scale, type=float, help='white noise having the noise scale')
 
-    parser.add_argument('--add_disturbance', default=True, type=bool, help="if True, add disturbance to action")
+    parser.add_argument('--add_disturbance', default='True', type=str2bool, help="if True, add disturbance to action")
     parser.add_argument('--disturbance_to', default=add_to, help="state, action")
     parser.add_argument('--disturbance_scale', default=disturbance_scale, type=float, help='choose disturbance scale')
-    parser.add_argument('--disturbance_frequency', default=[4], type=list, help='choose disturbance frequency')
+    parser.add_argument('--disturbance_frequency', default=disturbance_freq, type=list, help='choose disturbance frequency')
 
     # Etc
-    parser.add_argument('--cpu-only', default=False, type=bool, help='force to use cpu only')
+    parser.add_argument('--cpu-only', default='False', type=str2bool, help='force to use cpu only')
     parser.add_argument('--random-seed', default=-1, type=int, help='Random seed setting')
 
-    args = parser.parse_args()
+    args = parser.parse_known_args()
+
+    if len(args) != 1:
+        args = args[0]
 
     return args
 
@@ -59,15 +63,13 @@ def main(args_tester):
     if args_tester.test_on is False:
         raise Exception(" You must turn on args_tester.test_on if you wanna test ")
 
-    # print("Test about", args_tester.develop_mode)
-
     if args_tester.cpu_only == True:
         device = torch.device('cpu')
     else:
         device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     # print("Device:", device)
 
-    path_policy, env_name, algorithm_name, state_dim, action_dim, max_action, min_action, modelbased_mode, ensemble_mode\
+    path_policy, env_name, algorithm_name, state_dim, action_dim, max_action, min_action, frameskip, modelbased_mode, ensemble_mode\
         = load_config(args_tester)
 
     args, algorithm = get_algorithm_info(algorithm_name, state_dim, action_dim, device)

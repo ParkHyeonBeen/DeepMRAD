@@ -1,22 +1,28 @@
 import numpy as np
 import matplotlib.pyplot as plt
-import os, argparse
+import os, argparse, sys
+
+sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))\
+
+from Common.Utils import *
 
 def hyperparameters():
     parser = argparse.ArgumentParser(description='Result viewer')
 
-    parser.add_argument('--watch-cost', default=True, type=bool, help='if you wanna watch cost graph, True')
-    parser.add_argument('--watch-reward', default=False, type=bool, help='if you wanna watch reward graph, True')
-    parser.add_argument('--is-eval', default=True, type=bool, help='whether at evaluation or training')
+    parser.add_argument('--watch-cost', default='True', type=str2bool, help='if you wanna watch cost graph, True')
+    parser.add_argument('--watch-reward', default='False', type=str2bool, help='if you wanna watch reward graph, True')
+    parser.add_argument('--is-eval', default='False', type=str2bool, help='whether at evaluation or training')
 
     parser.add_argument('--data-type', default="normal", type=str, help="normal, path")
     parser.add_argument('--file-type', default=".csv", type=str, help=".csv, .npy")
-    parser.add_argument('--start-index', default=190, type=int, help='start index of plot to be viewed')
-    parser.add_argument('--data-index', default=4, type=int, help='data index to be viewed')
+    parser.add_argument('--start-index', default=1, type=int, help='start index of plot to be viewed')
+    parser.add_argument('--data-index', default=1, type=int, help='data index to be viewed')
+    parser.add_argument('--data-form', default="mean", type=str, help='all, mean, std')
 
     parser.add_argument('--path', default="/media/phb/Storage/env_mbrl/Results/", help='path of saved data')
-    parser.add_argument('--prev-result', default=True, type=bool, help='if previous result, True')
-    parser.add_argument('--prev-result-fname', default="0407_HalfCheetah-v3_esb/", help='choose the result to view')
+    parser.add_argument('--result-index', default="2", type=str, help='result to check')
+    parser.add_argument('--prev-result', default='False', type=str2bool, help='if previous result, True')
+    parser.add_argument('--prev-result-fname', default="0501_Hopper/", help='choose the result to view')
 
     args = parser.parse_args()
 
@@ -25,9 +31,9 @@ def hyperparameters():
 def main(args):
 
     if args.prev_result is False:
-        path_base = args.path + 'Result/saved_log/'
+        path_base = args.path + 'Result'+ args.result_index + '/saved_log/'
     else:
-        path_base = args.path + 'storage/' + args.prev_result_fname + 'saved_log/'
+        path_base = args.path + 'storage/_prev/trash/' + args.prev_result_fname + 'saved_log/'
     i = args.start_index
 
     if args.watch_cost is True:
@@ -44,8 +50,14 @@ def main(args):
             print(path)
             file = np.loadtxt(path, skiprows=1, delimiter = ',', dtype ='float')
             cost_data_ = np.asfarray(np.array(file[:, args.data_index]), float)
-            if args.is_eval is True:
+
+            if args.is_eval is False:
                 cost_data_ = np.sqrt(cost_data_)
+
+            if args.data_form == "mean":
+                cost_data_ = np.mean(cost_data_)
+            if args.data_form == "std":
+                cost_data_ = np.std(cost_data_)
 
             if i == 1:
                 cost_data = cost_data_
@@ -53,9 +65,8 @@ def main(args):
                 cost_data = np.hstack((cost_data, cost_data_))
             i += 1
 
-        print(np.mean(cost_data[1:]))
         plt.figure('cost' + str(args.data_index))
-        plt.plot(cost_data)
+        plt.plot(cost_data, "o")
     else:
         pass
 

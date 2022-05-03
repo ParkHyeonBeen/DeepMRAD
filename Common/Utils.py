@@ -153,6 +153,9 @@ def denormalize(input, act_max, act_min):
 
     return input
 
+def batch_normalize(minibatch):
+    pass
+
 def inv_softsign(y):
     if type(y) is torch.Tensor:
         y = y.cpu().detach().numpy()
@@ -162,23 +165,24 @@ def inv_softsign(y):
 
 
 def add_noise(val, scale = 0.1):
-    alpha_list = []
-    for i in range(len(val)):
-        alpha = scale*np.random.normal()
-        alpha_list.append(alpha)
-        val[i] += alpha
-    return val, np.array(alpha_list)
+    alpha = scale*np.random.normal(size=len(val))
+    val += alpha
+    return val, alpha
 
-def add_disturbance(val, step, terminal_time, scale = 0.1, frequency = None):
+def add_disturbance(val, step, terminal_time, scale=0.1, frequency=4):
     alpha_list = []
-    if frequency is None:
-        frequency = [2, 4, 8]
 
     for i in range(len(val)):
-        alpha = scale*math.sin((random.choice(frequency)*math.pi / terminal_time)*step)
+        alpha = scale*math.sin((frequency*math.pi / terminal_time)*step)
         alpha_list.append(alpha)
         val[i] += alpha
-    return val, np.array(alpha_list)
+
+    if type(val) is torch.Tensor:
+        val += 0.01*torch.normal(mean=torch.zeros_like(val), std=torch.ones_like(val))
+    else:
+        val += 0.01*np.random.normal(size=len(val))
+
+    return val, alpha_list
 
 ## related to saved data ##
 
@@ -243,20 +247,26 @@ def create_config(algorithm_name, args, env, state_dim, action_dim, max_action, 
     max_action_str = np2str(max_action)
     min_action_str = np2str(min_action)
 
-    with open(args.path + '/config.txt', 'w') as f:
+    with open(args.path + 'config.txt', 'w') as f:
+        print("Develop mode:", args.develop_mode, file=f)
         print("Environment:", args.env_name, file=f)
         print("Algorithm:", algorithm_name, file=f)
         print("State dim:", state_dim, file=f)
         print("Action dim:", action_dim, file=f)
         print("Max action:", max_action_str, file=f)
         print("Min action:", min_action_str, file=f)
-        print("Step size: {} (frame skip: {})".format(env.env.dt, env.env.frame_skip), file=f)
+        if args.domain_type == 'suite':
+            print("Step size:", env.control_timestep, file=f)
+            print("Frame skip:", 10, file=f)
+        else:
+            print("Step size:", env.env.dt, file=f)
+            print("Frame skip:", env.env.frame_skip, file=f)
         print("Save path :", args.path, file=f)
 
         if args.modelbased_mode is True:
             print("Model based mode:", args.modelbased_mode, file=f)
-            print("model lr : {}, model klweight : {}, inv model lr : {}, inv model klweight : {}".
-                  format(args.model_lr, args.model_kl_weight, args.inv_model_lr, args.inv_model_kl_weight), file=f)
+            print("model lr dnn : {}, model lr bnn : {}, model klweight : {}, inv model lr dnn: {}, inv model lr bnn: {}, inv model klweight : {}".
+                  format(args.model_lr_dnn, args.model_lr_bnn, args.model_kl_weight, args.inv_model_lr_dnn, args.inv_model_lr_bnn, args.inv_model_kl_weight), file=f)
             print("Ensemble mode:", args.ensemble_mode, file=f)
             print("ensemble size : {}, model batch size : {}".
                   format(args.ensemble_size, args.model_batch_size), file=f)
@@ -292,13 +302,15 @@ def load_config(args):
                 max_action_cfg = np.fromstring(line[line.index(':')+2:len(line)-1], dtype=float, sep=" ")
             if 'Min action:' in line:
                 min_action_cfg = np.fromstring(line[line.index(':')+2:len(line)-1], dtype=float, sep=" ")
+            if 'Frame skip:' in line:
+                frame_skip_cfg = int(line[line.index(':')+2:len(line)-1])
             if 'Model based mode:' in line:
                 modelbased_mode_cfg = (line[line.index(':')+2:len(line)-1] == 'True')
-            if 'Ensemble mode:' in line and not 'single' in args.modelnet_name:
+            if 'Ensemble mode:' in line:
                 ensemble_mode_cfg = (line[line.index(':')+2:len(line)-1] == 'True')
 
     return path_policy, env_name_cfg, algorithm_cfg, state_dim_cfg, action_dim_cfg, max_action_cfg, min_action_cfg, \
-           modelbased_mode_cfg, ensemble_mode_cfg
+           frame_skip_cfg, modelbased_mode_cfg, ensemble_mode_cfg
 
 
 def get_algorithm_info(algorithm_name, state_dim, action_dim, device):
@@ -332,6 +344,13 @@ def save_policys(policy, score, score_now, alive_rate, path):
     else:
         torch.save(policy.actor.state_dict(), path + "saved_net/policy/policy_current")
 
+def str2bool(v):
+    if v.lower() in ('yes', 'true', 't', 'y', '1'):
+        return True
+    elif v.lower() in ('no', 'false', 'f', 'n', '0'):
+        return False
+    else:
+        raise Exception('Boolean value expected.')
 
 ## related to gym
 
@@ -360,6 +379,35 @@ def gym_env(env_name, random_seed):
     test_env.action_space.seed(random_seed)
 
     return env, test_env
+
+def suite_env(*arg):
+    import robosuite as suite
+
+    # robosuite
+    env = suite.make(env_name=arg[0],
+                     robots=arg[1],
+                     has_renderer=arg[2],
+                     has_offscreen_renderer=arg[3],
+                     use_camera_obs=arg[4],
+                     reward_shaping=True)
+
+    test_env = suite.make(env_name=arg[0],
+                     robots=arg[1],
+                     has_renderer=arg[2],
+                     has_offscreen_renderer=arg[3],
+                     use_camera_obs=arg[4],
+                     reward_shaping=True)
+
+    return env, test_env
+
+def obs_to_state(env, obs):
+    state = None
+    for key in env.active_observables:
+        if state is None:
+            state = obs[key]
+        else:
+            state = np.hstack((state, obs[key]))
+    return state
 
 def soft_update(network, target_network, tau):
     for param, target_param in zip(network.parameters(), target_network.parameters()):

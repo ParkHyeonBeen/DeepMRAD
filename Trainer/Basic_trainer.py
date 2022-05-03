@@ -4,9 +4,14 @@ import cv2
 import numpy as np
 
 from Common.Utils import *
+from Common.Buffer import Buffer
+from Common.Utils_model import *
 
 class Basic_trainer():
-    def __init__(self, env, test_env, algorithm, max_action, min_action, args, args_tester=None):
+    def __init__(self, env, test_env, algorithm,
+                 state_dim, action_dim,
+                 max_action, min_action,
+                 args, args_tester=None):
 
         self.args = args
         self.args_tester = args_tester
@@ -63,6 +68,11 @@ class Basic_trainer():
         self.buffer = self.args.buffer
         self.buffer_freq = self.args.buffer_freq
 
+        if self.args.use_random_buffer is True:
+            self.buffer4model = Buffer(state_dim=state_dim, action_dim=action_dim, max_size=args.buffer_size, on_policy=False, device=self.algorithm.device)
+        else:
+            self.buffer4model = None
+
     def offline_train(self, d, local_step):
         if d:
             return True
@@ -89,6 +99,8 @@ class Basic_trainer():
             episode += 1
             eval_reward = 0
             observation = self.test_env.reset()
+            if self.args.domain_type == "suite":
+                observation = obs_to_state(self.test_env, observation)
 
             if '-ram-' in self.env_name:  # Atari Ram state
                 observation = observation / 255.
@@ -101,6 +113,9 @@ class Basic_trainer():
                 env_action = denormalize(action, self.max_action, self.min_action)
 
                 next_observation, reward, done, _ = self.test_env.step(env_action)
+
+                if self.args.domain_type == "suite":
+                    next_observation = obs_to_state(self.test_env, next_observation)
 
                 if self.render == True:
                     if self.domain_type in {'gym', "atari"}:
@@ -122,10 +137,17 @@ class Basic_trainer():
         score_now = sum(reward_list) / len(reward_list)
         alive_rate = alive_cnt / self.eval_episode
 
-        _score = save_policys(self.algorithm.actor, self.score, score_now, alive_rate, self.path)
+        _score = save_policys(self.algorithm, self.score, score_now, alive_rate, self.path)
 
         if _score is not None:
             self.score = _score
+
+        if self.total_step == self.args.buffer_size:
+            self.algorithm.buffer.save_buffer(self.path, 'by_full')
+            self.buffer4model.save_buffer(self.path, 'by_full', noise=True)
+        elif self.total_step > self.args.buffer_size:
+            self.algorithm.buffer.save_buffer(self.path, 'after_full')
+            self.buffer4model.save_buffer(self.path, 'after_full', noise=True)
 
         print("Eval  | Average Reward {:.2f}, Max reward: {:.2f}, Min reward: {:.2f}, Stddev reward: {:.2f}, alive rate : {:.2f}".format(sum(reward_list)/len(reward_list), max(reward_list), min(reward_list), np.std(reward_list), 100*alive_rate))
         self.test_env.close()
@@ -142,6 +164,10 @@ class Basic_trainer():
             self.local_step = 0
 
             observation = self.env.reset()
+            if self.args.domain_type == "suite":
+                observation = obs_to_state(self.test_env, observation)
+
+            self.test_env.reset()
             done = False
 
             while not done:
@@ -162,7 +188,10 @@ class Basic_trainer():
                     observation = observation / 255.
 
                 if self.total_step <= self.algorithm.training_start:
-                    env_action = self.env.action_space.sample()
+                    if self.args.domain_type == "suite":
+                        env_action = np.random.randn(self.env.robots[0].dof)
+                    else:
+                        env_action = self.env.action_space.sample()
                     action = normalize(env_action, self.max_action, self.min_action)
                 else:
                     if self.algorithm.buffer.on_policy == False:
@@ -170,8 +199,11 @@ class Basic_trainer():
                     else:
                         action, log_prob = self.algorithm.get_action(observation)
                     env_action = denormalize(action, self.max_action, self.min_action)
-
+                if self.args.use_random_buffer is True:
+                    set_sync_env(self.env, self.test_env)
                 next_observation, reward, done, info = self.env.step(env_action)
+                if self.args.domain_type == "suite":
+                    next_observation = obs_to_state(self.test_env, next_observation)
 
                 if self.local_step + 1 == 1000:
                     real_done = 0.
@@ -188,13 +220,13 @@ class Basic_trainer():
                 else:
                     self.algorithm.buffer.add(observation, action, reward, next_observation, real_done, log_prob)
 
+                if self.args.use_random_buffer is True:
+                    get_random_action_batch(observation, action, self.test_env, self.buffer4model, self.max_action, self.min_action)
+
                 observation = next_observation
 
                 if self.total_step >= self.algorithm.training_start and self.train_mode(done, self.local_step):
                     loss_list = self.algorithm.train(self.algorithm.training_step)
-
-                if self.eval == True and self.total_step % self.eval_step == 0:
-                    self.evaluate()
 
                 if self.eval is True and self.total_step % self.eval_step == 0:
                     self.evaluate()

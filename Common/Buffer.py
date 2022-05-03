@@ -161,9 +161,27 @@ class Buffer:
 
         return states, actions, rewards, states_next, dones
 
+    def save_buffer(self, path, name, noise=False):
+        if noise is True:
+            path = path + 'saved_buffer/buffer_noise_' + name
+        else:
+            path = path + 'saved_buffer/buffer_' + name
 
+        np.save(path + '_s.npy', self.s)
+        np.save(path + '_a.npy', self.a)
+        np.save(path + '_ns.npy', self.ns)
 
+    def load_buffer(self, path, name, noise=False):
+        if noise is True:
+            path = path + 'saved_buffer/buffer_noise_' + name
+        else:
+            path = path + 'saved_buffer/buffer_' + name
 
+        self.s = np.load(path + '_s.npy')
+        self.a = np.load(path + '_a.npy')
+        self.ns = np.load(path + '_ns.npy')
+
+        self.idx = np.count_nonzero(self.s, axis=0)[0]
 
 
 

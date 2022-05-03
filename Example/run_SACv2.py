@@ -10,21 +10,24 @@ from Algorithm.ImageRL.SAC import ImageSAC_v2
 from Trainer import *
 from Common.Utils import *
 
+torch.autograd.set_detect_anomaly(True)
+
 def hyperparameters():
     parser = argparse.ArgumentParser(description='Soft Actor Critic (SAC) v2 example')
 
     # note in txt
     parser.add_argument('--note',
-                        default="train for 5 ensemble among 5 models in ",
+                        default="change bnn std 0.1 --> 0.01",
                         type=str, help='note about what to change')
 
     #environment
-    parser.add_argument('--domain-type', default='gym', type=str, help='gym or dmc, dmc/image')
-    parser.add_argument('--env-name', default='HalfCheetah-v3', help='Pendulum-v0, MountainCarContinuous-v0')
+    parser.add_argument('--domain-type', default='gym', type=str, help='gym or dmc, dmc/image, suite')
+    parser.add_argument('--env-name', default='Walker2d-v3', help='Pendulum-v0, MountainCarContinuous-v0, Door')
+    parser.add_argument('--robots', default='Panda', help='if domain type is suite, choose the robots')
     parser.add_argument('--discrete', default=False, type=bool, help='Always Continuous')
     parser.add_argument('--render', default=False, type=bool)
     parser.add_argument('--training-start', default=1000, type=int, help='First step to start training')
-    parser.add_argument('--max-step', default=2000001, type=int, help='Maximum training step')
+    parser.add_argument('--max-step', default=5000001, type=int, help='Maximum training step')
     parser.add_argument('--eval', default=True, type=bool, help='whether to perform evaluation')
     parser.add_argument('--eval-step', default=10000, type=int, help='Frequency in performance evaluation')
     parser.add_argument('--eval-episode', default=5, type=int, help='Number of episodes to perform evaluation')
@@ -67,24 +70,32 @@ def hyperparameters():
     parser.add_argument('--buffer-freq', default=10000, type=int, help='buffer saving frequency')
 
     # estimate a model dynamics
-    parser.add_argument('--modelbased-mode', default=True, type=bool, help="you should choose whether basic or model_base")
-    parser.add_argument('--ensemble-mode', default=True, type=bool, help="you should choose whether using an ensemble ")
+    parser.add_argument('--modelbased-mode', default=False, type=bool, help="you should choose whether basic or model_base")
+    parser.add_argument('--develop-mode', '-dm', default='DeepDOB', help="Both, DeepDOB, MRAP")
+    parser.add_argument('--ensemble-mode', default=False, type=bool, help="you should choose whether using an ensemble ")
     parser.add_argument('--ensemble-size', default=2, type=int, help="ensemble size")
     parser.add_argument('--model-batch-size', default=5, type=int, help="model batch size to use for ensemble")
-    parser.add_argument('--net-type', default="DNN", help='DNN, BNN')
-    parser.add_argument('--model-lr', default=0.001, type=float)
+    parser.add_argument('--net-type', default="all", help='all, DNN, BNN')
+    parser.add_argument('--model-lr-dnn', default=0.001, type=float)
+    parser.add_argument('--model-lr-bnn', default=0.001, type=float)
     parser.add_argument('--model-kl-weight', default=0.05, type=float)
-    parser.add_argument('--inv-model-lr', default=0.001, type=float)
-    parser.add_argument('--inv-model-kl-weight', default=0.1, type=float)
+    parser.add_argument('--inv-model-lr-dnn', default=0.001, type=float)
+    parser.add_argument('--inv-model-lr-bnn', default=0.01, type=float)
+    parser.add_argument('--inv-model-kl-weight', default=0.01, type=float)
+    parser.add_argument('--use-random-buffer', default=False, type=bool, help="add random action to training data")
 
     # save path
-    parser.add_argument('--path', default="/media/phb/Storage/env_mbrl/Results/Result/", help='path for save')
+    parser.add_argument('--path', default="/media/phb/Storage/env_mbrl/Results/Result2/", help='path for save')
 
-    args = parser.parse_args()
+    args = parser.parse_known_args()
+
+    if len(args) != 1:
+        args = args[0]
 
     return args
 
 def main(args):
+
     if args.cpu_only == True:
         device = torch.device('cpu')
     else:
@@ -95,6 +106,9 @@ def main(args):
     random_seed = set_seed(args.random_seed)
     print("Random Seed:", random_seed)
     print("Domain type:", args.domain_type)
+    print("Develop mode:", args.develop_mode)
+    print("Model based mode:", args.modelbased_mode)
+    print("Ensemble mode:", args.ensemble_mode)
 
     #env setting
     if args.domain_type == 'gym':
@@ -109,16 +123,32 @@ def main(args):
     elif args.domain_type == 'dmcr':
         env, test_env = dmcr_env(args.env_name, args.image_size, args.frame_skip, random_seed, 'classic')
 
-    state_dim = env.observation_space.shape[0]
+    elif args.domain_type == 'suite':
+        env, test_env = suite_env(args.env_name, args.robots, args.render, False, False)
 
-    if args.domain_type in {'dmc/image', 'dmcr'}:
+    if args.domain_type == 'suite':
+        state_dim = 0
+        for key in env.active_observables:
+            if type(env.observation_spec()[key]) is int:
+                state_dim += 1
+            else:
+                state_dim += len(env.observation_spec()[key])
+
+    elif args.domain_type in {'dmc/image', 'dmcr'}:
         state_dim = env.observation_space.shape
+    else:
+        state_dim = env.observation_space.shape[0]
 
-    action_dim = env.action_space.shape[0]
-    max_action = env.action_space.high
-    min_action = env.action_space.low
+    if args.domain_type == 'suite':
+        action_dim = env.action_dim
+        max_action = env.action_spec[1]
+        min_action = env.action_spec[0]
+    else:
+        action_dim = env.action_space.shape[0]
+        max_action = env.action_space.high
+        min_action = env.action_space.low
 
-    if args.domain_type in {'gym', 'dmc'}:
+    if args.domain_type in {'gym', 'dmc', 'suite'}:
         algorithm = SAC_v2(state_dim, action_dim, device, args)
     elif args.domain_type in {'dmc/image', 'dmcr'}:
         algorithm = ImageSAC_v2(state_dim, action_dim, device, args)
@@ -127,7 +157,7 @@ def main(args):
 
     if args.modelbased_mode is False:
         trainer = Basic_trainer(
-            env, test_env, algorithm, max_action, min_action, args)
+            env, test_env, algorithm, state_dim, action_dim, max_action, min_action, args)
     else:
         trainer = Model_trainer(
             env, test_env, algorithm, state_dim, action_dim, max_action, min_action, args)
