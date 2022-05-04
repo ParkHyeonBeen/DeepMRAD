@@ -229,7 +229,7 @@ class InverseDynamicsNetwork(nn.Module):
         state = F.softsign(state)
         next_state = F.softsign(next_state)
 
-        state_d = (next_state - state)/self.frameskip
+        state_d = (next_state - state)/(self.frameskip)
 
         # for i in range(len(self.inv_dnmsNN_state)):
         #     state_d = self.inv_dnmsNN_state_d[i](state_d)

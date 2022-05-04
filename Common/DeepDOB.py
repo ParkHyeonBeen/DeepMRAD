@@ -45,13 +45,13 @@ class DeepDOB:
                 if i == 0:
                     state_inner = self.state
                 # action step
-                env_action_dob_n = action_tensor# - self.disturbance_estm_n
+                env_action_dob_n = action_tensor - self.disturbance_estm_n
                 env_action_dob = denormalize(env_action_dob_n, self.max_action, self.min_action)
                 if self.args_tester.add_noise is True and self.args_tester.noise_to == 'action':
-                    env_action_real, noise_list = add_noise(env_action_dob, scale=self.args_tester.noise_scale)
+                    env_action_dob, noise_list = add_noise(env_action_dob, scale=self.args_tester.noise_scale)
 
                 if self.args_tester.add_disturbance is True and self.args_tester.disturbance_to == 'action':
-                    env_action_real, disturbance_list = add_disturbance(env_action_dob, local_step,
+                    env_action_dob, disturbance_list = add_disturbance(env_action_dob, local_step,
                                                      self.test_env.spec.max_episode_steps,
                                                      scale=self.args_tester.disturbance_scale,
                                                      frequency=self.args_tester.disturbance_frequency)
@@ -59,9 +59,9 @@ class DeepDOB:
                 # if self.args_tester.noise_to == 'state':
                 #     env_action_real = env_action_dob
 
-                env_action_real_npy = env_action_real.cpu().detach().numpy()
-                # self.estimate_data.plot_data((env_action_real_npy - env_action)[0])
-                next_state_inner, reward_inner, self.done, info = self.test_env.step(env_action_real_npy, inner_loop=self.steps_inloop)
+                env_action_dob_npy = env_action_dob.cpu().detach().numpy()
+                # self.estimate_data.plot_data((env_action_dob_npy - env_action)[0])
+                next_state_inner, reward_inner, self.done, info = self.test_env.step(env_action_dob_npy, inner_loop=self.steps_inloop)
                 if self.args_tester.add_noise is True and self.args_tester.noise_to == 'state':
                     next_state_inner, noise_list = add_noise(next_state_inner, scale=self.args_tester.noise_scale)
                 if self.args_tester.add_disturbance is True and self.args_tester.disturbance_to == 'state':
@@ -80,10 +80,11 @@ class DeepDOB:
                 # self.disturbance_estm_n = 0.5*torch.tanh(1.1*(self.inv_model_net(state_d, state_inner) - action_tensor))
 
                 self.disturbance_estm_n = self.inv_model_net(state_inner, next_state_inner) - env_action_dob_n
-                self.disturbance_estm_n = torch.clamp(self.disturbance_estm_n, min =torch.tensor(-0.5), max=torch.tensor(0.5))
+                # self.disturbance_data.plot_data(self.inv_model_net.eval_model(state_inner, env_action_dob_n, next_state_inner))
+                self.disturbance_estm_n = torch.clamp(self.disturbance_estm_n, min =torch.tensor(-1.0), max=torch.tensor(1.0))
                 self.pred_list.append(self.disturbance_estm_n)
                 self.disturbance_estm_n = sum(self.pred_list)/len(self.pred_list)
-                self.disturbance_data.plot_data((self.disturbance_estm_n.cpu().detach().numpy())[0])
+                # self.disturbance_data.plot_data((self.disturbance_estm_n.cpu().detach().numpy())[0])
                 state_inner = next_state_inner
 
             remain_frameskip = self.test_env.env.frame_skip_origin % self.args_tester.frameskip_inner

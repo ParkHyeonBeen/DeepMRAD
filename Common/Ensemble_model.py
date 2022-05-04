@@ -42,7 +42,6 @@ class Ensemble(nn.Module):
                 raise Exception("check whether the model is included in model network")
             z_list.append(z)
         z_esb = sum(z_list) / self.ensemble_size
-
         return z_esb
 
     def train_all(self, training_num):

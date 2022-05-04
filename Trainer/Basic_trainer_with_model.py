@@ -386,6 +386,7 @@ class Model_trainer():
                                                         frequency=self.args_tester.disturbance_frequency)
                     next_observation, reward, done, _ = self.test_env.step(env_action)
 
+                    # self.distribution_data.plot_data(self.model.eval_model(observation, action, next_observation))
                     # self.distribution_data.plot_data((self.model(observation, next_observation).cpu().detach().numpy() - action)[0])
                     # dist_nn = self.model(observation, next_observation).cpu().detach().numpy() - action
 
@@ -425,8 +426,7 @@ class Model_trainer():
                 sum(reward_list) / len(reward_list), max(reward_list), min(reward_list), np.std(reward_list),
                 100 * (alive_cnt / self.test_episode)))
         self.test_env.close()
-        # if self.args_tester.develop_mode == 'DeepDOB':
-        #     self.deepdob.save_data()
+
         return sum(reward_list) / len(reward_list), \
                max(reward_list), min(reward_list), \
                np.std(reward_list), \

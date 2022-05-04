@@ -27,7 +27,7 @@ def hyperparameters():
     parser.add_argument('--discrete', default=False, type=bool, help='Always Continuous')
     parser.add_argument('--render', default=False, type=bool)
     parser.add_argument('--training-start', default=1000, type=int, help='First step to start training')
-    parser.add_argument('--max-step', default=5000001, type=int, help='Maximum training step')
+    parser.add_argument('--max-step', default=2000001, type=int, help='Maximum training step')
     parser.add_argument('--eval', default=True, type=bool, help='whether to perform evaluation')
     parser.add_argument('--eval-step', default=10000, type=int, help='Frequency in performance evaluation')
     parser.add_argument('--eval-episode', default=5, type=int, help='Number of episodes to perform evaluation')
@@ -85,7 +85,7 @@ def hyperparameters():
     parser.add_argument('--use-random-buffer', default=False, type=bool, help="add random action to training data")
 
     # save path
-    parser.add_argument('--path', default="/media/phb/Storage/env_mbrl/Results/Result2/", help='path for save')
+    parser.add_argument('--path', default="/media/phb/Storage/env_mbrl/Results/Door_Panda/", help='path for save')
 
     args = parser.parse_known_args()
 

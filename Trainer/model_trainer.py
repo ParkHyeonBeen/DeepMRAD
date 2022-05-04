@@ -14,21 +14,21 @@ def hyperparameters():
     parser = argparse.ArgumentParser(description='Soft Actor Critic (SAC) v2 example')
     # save path
     parser.add_argument('--path', default="/media/phb/Storage/env_mbrl/Results/", help='path for save')
-    parser.add_argument('--result-index', default="Result4/", help='result to check')
+    parser.add_argument('--result-index', default="hopper_dnn_esb/", help='result to check')
 
     # estimate a model dynamics
     parser.add_argument('--modelbased-mode', default=True, type=bool, help="you should choose whether basic or model_base")
     parser.add_argument('--develop-mode', '-dm', default='DeepDOB', help="Both, DeepDOB, MRAP")
     parser.add_argument('--ensemble-mode', default="True", type=str2bool, help="you should choose whether using an ensemble ")
-    parser.add_argument('--ensemble-size', default=2, type=int, help="ensemble size")
+    parser.add_argument('--ensemble-size', default=3, type=int, help="ensemble size")
     parser.add_argument('--model-batch-size', default=5, type=int, help="model batch size to use for ensemble")
     parser.add_argument('--net-type', default="DNN", help='all, DNN, BNN')
     parser.add_argument('--model-lr-dnn', default=0.001, type=float)
     parser.add_argument('--model-lr-bnn', default=0.001, type=float)
     parser.add_argument('--model-kl-weight', default=0.05, type=float)
     parser.add_argument('--inv-model-lr-dnn', default=0.001, type=float)
-    parser.add_argument('--inv-model-lr-bnn', default=0.01, type=float)
-    parser.add_argument('--inv-model-kl-weight', default=0.01, type=float)
+    parser.add_argument('--inv-model-lr-bnn', default=0.001, type=float)
+    parser.add_argument('--inv-model-kl-weight', default=0.002, type=float)
     parser.add_argument('--use-random-buffer', default=True, type=bool, help="add random action to training data")
 
     parser.add_argument('--render', default=False, type=bool)

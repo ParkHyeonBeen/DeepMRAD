@@ -7,7 +7,7 @@ sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))
 from Example import *
 from Common.Utils import *
 
-def hyperparameters(result_fname="0407_HalfCheetah-v3_esb",
+def hyperparameters(result_fname="0503_Hopper",
                     num_test=5,
                     noise_scale=0.0,
                     disturbance_scale=0.0,
@@ -30,7 +30,7 @@ def hyperparameters(result_fname="0407_HalfCheetah-v3_esb",
 
     # result to watch
     parser.add_argument('--path', default="/media/phb/Storage/env_mbrl/Results/", help='path for save')
-    parser.add_argument('--result-index', default="Result2/", help='result to check')
+    parser.add_argument('--result-index', default="Result4/", help='result to check')
     parser.add_argument('--prev-result', default='True', type=str2bool, help='if previous result, True')
     parser.add_argument('--prev-result-fname', default=result_fname, help='choose the result to view')
     parser.add_argument('--modelnet-name', default=model_name, help='modelDNN_better, modelBNN_better')
@@ -71,6 +71,7 @@ def main(args_tester):
 
     path_policy, env_name, algorithm_name, state_dim, action_dim, max_action, min_action, frameskip, modelbased_mode, ensemble_mode\
         = load_config(args_tester)
+    print(path_policy)
 
     args, algorithm = get_algorithm_info(algorithm_name, state_dim, action_dim, device)
 
@@ -86,7 +87,9 @@ def main(args_tester):
 
     if args_tester.develop_mode == 'Basic':
         trainer = Basic_trainer(
-            env, test_env, algorithm, max_action, min_action, args, args_tester)
+            env, test_env, algorithm,
+            state_dim, action_dim, max_action, min_action,
+            args, args_tester)
     else:
         trainer = Model_trainer(
             env, test_env, algorithm,

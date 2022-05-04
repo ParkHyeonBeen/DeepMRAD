@@ -177,10 +177,11 @@ def add_disturbance(val, step, terminal_time, scale=0.1, frequency=4):
         alpha_list.append(alpha)
         val[i] += alpha
 
-    if type(val) is torch.Tensor:
-        val += 0.01*torch.normal(mean=torch.zeros_like(val), std=torch.ones_like(val))
-    else:
-        val += 0.01*np.random.normal(size=len(val))
+    if scale > 0.01:
+        if type(val) is torch.Tensor:
+            val += 0.01*torch.normal(mean=torch.zeros_like(val), std=torch.ones_like(val))
+        else:
+            val += 0.01*np.random.normal(size=len(val))
 
     return val, alpha_list
 
@@ -277,8 +278,8 @@ def create_config(algorithm_name, args, env, state_dim, action_dim, max_action, 
 def load_config(args):
 
     if args.prev_result is True:
-        path_config = args.path + "storage/" + args.prev_result_fname + "/config.txt"
-        path_policy = args.path + "storage/" + args.prev_result_fname + "/saved_net/policy/" + args.policynet_name
+        path_config = args.path + "storage/_prev/trash/" + args.prev_result_fname + "/config.txt"
+        path_policy = args.path + "storage/_prev/trash/" + args.prev_result_fname + "/saved_net/policy/" + args.policynet_name
     else:
         path_config = args.path + args.result_index + "config.txt"
         path_policy = args.path + args.result_index + "saved_net/policy/" + args.policynet_name

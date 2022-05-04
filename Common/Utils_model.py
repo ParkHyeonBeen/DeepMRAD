@@ -132,16 +132,16 @@ def load_models(args_tester, model, ensemble_mode=False):
 
     if "DNN" in args_tester.modelnet_name:
         if args_tester.prev_result is True:
-            path_model = path + "storage/" + args_tester.prev_result_fname + "/saved_net/model/DNN/" + args_tester.modelnet_name
-            path_invmodel = path + "storage/" + args_tester.prev_result_fname + "/saved_net/model/DNN/inv" + args_tester.modelnet_name
+            path_model = path + "storage/_prev/trash/" + args_tester.prev_result_fname + "/saved_net/model/DNN/" + args_tester.modelnet_name
+            path_invmodel = path + "storage/_prev/trash/" + args_tester.prev_result_fname + "/saved_net/model/DNN/inv" + args_tester.modelnet_name
         else:
             path_model = path + args_tester.result_index + "saved_net/model/DNN/" + args_tester.modelnet_name
             path_invmodel = path + args_tester.result_index + "saved_net/model/DNN/inv" + args_tester.modelnet_name
 
     if "BNN" in args_tester.modelnet_name:
         if args_tester.prev_result is True:
-            path_model = path + "storage/" + args_tester.prev_result_fname + "/saved_net/model/BNN/" + args_tester.modelnet_name
-            path_invmodel = path + "storage/" + args_tester.prev_result_fname + "/saved_net/model/BNN/inv" + args_tester.modelnet_name
+            path_model = path + "storage/_prev/trash/" + args_tester.prev_result_fname + "/saved_net/model/BNN/" + args_tester.modelnet_name
+            path_invmodel = path + "storage/_prev/trash/" + args_tester.prev_result_fname + "/saved_net/model/BNN/inv" + args_tester.modelnet_name
         else:
             path_model = path + args_tester.result_index + "saved_net/model/BNN/" + args_tester.modelnet_name
             path_invmodel = path + args_tester.result_index + "saved_net/model/BNN/inv" + args_tester.modelnet_name

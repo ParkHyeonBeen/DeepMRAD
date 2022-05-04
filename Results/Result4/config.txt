@@ -8,4 +8,6 @@ Min action: -1.0 -1.0 -1.0 -1.0 -1.0 -1.0
 Step size: 0.008
 Frame skip: 4
 Save path : /media/phb/Storage/env_mbrl/Results/Result2/
+Ensemble mode: True
+ensemble size : 5, model batch size : 5
 consideration note :  change bnn std 0.1 --> 0.01

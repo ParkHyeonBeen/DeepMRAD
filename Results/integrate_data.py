@@ -11,16 +11,16 @@ def hyperparameters():
 
     parser.add_argument('--watch-cost', default='True', type=str2bool, help='if you wanna watch cost graph, True')
     parser.add_argument('--watch-reward', default='False', type=str2bool, help='if you wanna watch reward graph, True')
-    parser.add_argument('--is-eval', default='False', type=str2bool, help='whether at evaluation or training')
+    parser.add_argument('--is-eval', default='True', type=str2bool, help='whether at evaluation or training')
 
     parser.add_argument('--data-type', default="normal", type=str, help="normal, path")
     parser.add_argument('--file-type', default=".csv", type=str, help=".csv, .npy")
     parser.add_argument('--start-index', default=1, type=int, help='start index of plot to be viewed')
     parser.add_argument('--data-index', default=1, type=int, help='data index to be viewed')
-    parser.add_argument('--data-form', default="mean", type=str, help='all, mean, std')
+    parser.add_argument('--data-form', default="all", type=str, help='all, mean, std')
 
     parser.add_argument('--path', default="/media/phb/Storage/env_mbrl/Results/", help='path of saved data')
-    parser.add_argument('--result-index', default="2", type=str, help='result to check')
+    parser.add_argument('--result-index', default="hopper_dnn_esb", type=str, help='result to check')
     parser.add_argument('--prev-result', default='False', type=str2bool, help='if previous result, True')
     parser.add_argument('--prev-result-fname', default="0501_Hopper/", help='choose the result to view')
 
@@ -31,7 +31,7 @@ def hyperparameters():
 def main(args):
 
     if args.prev_result is False:
-        path_base = args.path + 'Result'+ args.result_index + '/saved_log/'
+        path_base = args.path + args.result_index + '/saved_log/'
     else:
         path_base = args.path + 'storage/_prev/trash/' + args.prev_result_fname + 'saved_log/'
     i = args.start_index

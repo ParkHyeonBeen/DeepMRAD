@@ -5,7 +5,8 @@ State dim: 11
 Action dim: 3
 Max action: 1.0 1.0 1.0 
 Min action: -1.0 -1.0 -1.0 
-Step size: 0.008 (frame skip: 4)
+Step size: 0.008
+Frame skip: 4
 Save path : /media/phb/Storage/env_mbrl/Results/Result2/
 Model based mode: True
 model lr : 0.001, model klweight : 0.05, inv model lr : 0.001, inv model klweight : 0.1

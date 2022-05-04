@@ -10,15 +10,15 @@ Tester_data = DataManager()
 def tester_hyperparameters():
     parser = argparse.ArgumentParser(description='Intergrated Testor')
 
-    parser.add_argument('--result-fname', '-fn', default='0407_HalfCheetah-v3_esb', type=str, help='Result name to check')
+    parser.add_argument('--result-fname', '-fn', default='0503_Hopper', type=str, help='Result name to check')
     parser.add_argument('--develop-mode', '-dm', default='Basic', help="Basic, DeepDOB, MRAP")
-    parser.add_argument('--num-test', '-tn', default=10, type=int, help='the number of tests')
+    parser.add_argument('--num-test', '-tn', default=100, type=int, help='the number of tests')
     parser.add_argument('--policy-kind', '-pk', default='best', type=str, help='current, better, best')
     parser.add_argument('--model-kind', '-mk', default='better', type=str, help='current, better')
-    parser.add_argument('--model-order', '-mo', default=['DNN', 'BNN'], help='the order of test model')
+    parser.add_argument('--model-order', '-mo', default=['DNN'], help='the order of test model')
 
     parser.add_argument('--dist-kind', '-dk', default='sine', type=str, help='normal, sine, sine_normal')
-    parser.add_argument('--num-dist', '-dn', default=5, type=int, help='the number of disturbance in certain range')
+    parser.add_argument('--num-dist', '-dn', default=20, type=int, help='the number of disturbance in certain range')
     parser.add_argument('--add-to', '-ad', default='action', type=str, help='action, state')
     parser.add_argument('--max-dist-action', '-xda', default=0.5, type=float, help='max mag of dist for action')
     parser.add_argument('--min-dist-action', '-nda', default=0.0, type=float, help='min mag of dist for action')
@@ -85,7 +85,7 @@ else:
         Tester_data.init_data()
         for i in np.linspace(start_mag, mag_range, args_itg.num_dist+1):
             print("current external force scale :", i)
-            if args_itg.dist_kind == 'irregular':
+            if args_itg.dist_kind == 'sine':
                 args = hyperparameters(result_fname=args_itg.result_fname,
                                        num_test=args_itg.num_test,
                                        disturbance_scale=i,
