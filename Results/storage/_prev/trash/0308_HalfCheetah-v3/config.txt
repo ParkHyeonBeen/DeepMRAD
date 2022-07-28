@@ -1,8 +1,0 @@
-Training of gym_HalfCheetah-v3
-Algorithm: SAC_v2
-State dim: 17
-Action dim: 6
-Action range: -1.00 ~ 1.00
-step size: 0.05 (frame skip: 5)
-save path :  X:/env_mbrl/Results/Result2/
-model lr : 0.001, model klweight : 0.05, inv model lr : 0.0001, inv model klweight : 0.05

@@ -46,7 +46,7 @@ class DataManager:
         if label is None:
             if self.data_name is not None:
                 plt.figure(self.data_name)
-            plt.plot(self.data)
+            plt.plot(self.data, 'o')
         else:
             plt.plot(self.data, label=label)
             plt.legend()

@@ -1,9 +1,0 @@
-Training of gym_Hopper-v3
-Algorithm: SAC_v2
-State dim: 11
-Action dim: 3
-Action range: -1.00 ~ 1.00
-step size: 0.008 (frame skip: 4)
-save path :  X:/env_mbrl/Results/Result/
-model lr : 0.001, model klweight : 0.05, inv model lr : 0.001, inv model klweight : 0.1
-consideration note :  use frame skip instead of steptime to compute differential states

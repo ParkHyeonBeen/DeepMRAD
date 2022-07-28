@@ -1,5 +1,6 @@
 import collections
 
+import numpy as np
 import torch
 import mujoco_py
 from Common.Utils import *
@@ -58,6 +59,7 @@ class DeepDOB:
                 # # real system
                 # if self.args_tester.noise_to == 'state':
                 #     env_action_real = env_action_dob
+                # self.estimate_data.plot_data(disturbance_list[0])
 
                 env_action_dob_npy = env_action_dob.cpu().detach().numpy()
                 # self.estimate_data.plot_data((env_action_dob_npy - env_action)[0])
@@ -75,15 +77,13 @@ class DeepDOB:
                 reward += reward_inner
 
                 # predict disturbance
-                state_d = (next_state_inner - state_inner) / self.frameskip
-
                 # self.disturbance_estm_n = 0.5*torch.tanh(1.1*(self.inv_model_net(state_d, state_inner) - action_tensor))
 
                 self.disturbance_estm_n = self.inv_model_net(state_inner, next_state_inner) - env_action_dob_n
                 # self.disturbance_data.plot_data(self.inv_model_net.eval_model(state_inner, env_action_dob_n, next_state_inner))
                 self.disturbance_estm_n = torch.clamp(self.disturbance_estm_n, min =torch.tensor(-1.0), max=torch.tensor(1.0))
-                self.pred_list.append(self.disturbance_estm_n)
-                self.disturbance_estm_n = sum(self.pred_list)/len(self.pred_list)
+                # self.pred_list.append(self.disturbance_estm_n)
+                # self.disturbance_estm_n = sum(self.pred_list)/len(self.pred_list)
                 # self.disturbance_data.plot_data((self.disturbance_estm_n.cpu().detach().numpy())[0])
                 state_inner = next_state_inner
 

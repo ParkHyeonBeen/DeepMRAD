@@ -10,20 +10,20 @@ Tester_data = DataManager()
 def tester_hyperparameters():
     parser = argparse.ArgumentParser(description='Intergrated Testor')
 
-    parser.add_argument('--result-fname', '-fn', default='0503_Hopper', type=str, help='Result name to check')
+    parser.add_argument('--result-fname', '-fn', default='hopper_bnn', type=str, help='Result name to check')
     parser.add_argument('--develop-mode', '-dm', default='Basic', help="Basic, DeepDOB, MRAP")
     parser.add_argument('--num-test', '-tn', default=100, type=int, help='the number of tests')
     parser.add_argument('--policy-kind', '-pk', default='best', type=str, help='current, better, best')
     parser.add_argument('--model-kind', '-mk', default='better', type=str, help='current, better')
-    parser.add_argument('--model-order', '-mo', default=['DNN'], help='the order of test model')
+    parser.add_argument('--model-order', '-mo', default=['BNN'], help='the order of test model')
 
     parser.add_argument('--dist-kind', '-dk', default='sine', type=str, help='normal, sine, sine_normal')
     parser.add_argument('--num-dist', '-dn', default=20, type=int, help='the number of disturbance in certain range')
     parser.add_argument('--add-to', '-ad', default='action', type=str, help='action, state')
-    parser.add_argument('--max-dist-action', '-xda', default=0.5, type=float, help='max mag of dist for action')
-    parser.add_argument('--min-dist-action', '-nda', default=0.0, type=float, help='min mag of dist for action')
-    parser.add_argument('--max-dist-state', '-xds', default=0.1, type=float, help='max mag of dist for state')
-    parser.add_argument('--min-dist-state', '-nds', default=0.0, type=float, help='min mag of dist for state')
+    parser.add_argument('--max-dist-action', '-xda', default=1.0, type=float, help='max mag of dist for action')
+    parser.add_argument('--min-dist-action', '-nda', default=0.5, type=float, help='min mag of dist for action')
+    parser.add_argument('--max-dist-state', '-xds', default=0.5, type=float, help='max mag of dist for state')
+    parser.add_argument('--min-dist-state', '-nds', default=0.15, type=float, help='min mag of dist for state')
 
     parser.add_argument('--save-dir', default="/media/phb/Storage/env_mbrl/Results/Integrated_log/", help='path of saved data')
 

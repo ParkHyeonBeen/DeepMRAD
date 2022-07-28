@@ -22,12 +22,12 @@ def hyperparameters():
 
     #environment
     parser.add_argument('--domain-type', default='gym', type=str, help='gym or dmc, dmc/image, suite')
-    parser.add_argument('--env-name', default='Walker2d-v3', help='Pendulum-v0, MountainCarContinuous-v0, Door')
+    parser.add_argument('--env-name', default='Humanoid-v3', help='Pendulum-v0, MountainCarContinuous-v0, Door')
     parser.add_argument('--robots', default='Panda', help='if domain type is suite, choose the robots')
     parser.add_argument('--discrete', default=False, type=bool, help='Always Continuous')
     parser.add_argument('--render', default=False, type=bool)
     parser.add_argument('--training-start', default=1000, type=int, help='First step to start training')
-    parser.add_argument('--max-step', default=2000001, type=int, help='Maximum training step')
+    parser.add_argument('--max-step', default=10000001, type=int, help='Maximum training step')
     parser.add_argument('--eval', default=True, type=bool, help='whether to perform evaluation')
     parser.add_argument('--eval-step', default=10000, type=int, help='Frequency in performance evaluation')
     parser.add_argument('--eval-episode', default=5, type=int, help='Number of episodes to perform evaluation')
@@ -82,10 +82,10 @@ def hyperparameters():
     parser.add_argument('--inv-model-lr-dnn', default=0.001, type=float)
     parser.add_argument('--inv-model-lr-bnn', default=0.01, type=float)
     parser.add_argument('--inv-model-kl-weight', default=0.01, type=float)
-    parser.add_argument('--use-random-buffer', default=False, type=bool, help="add random action to training data")
+    parser.add_argument('--use-random-buffer', default=True, type=bool, help="add random action to training data")
 
     # save path
-    parser.add_argument('--path', default="/media/phb/Storage/env_mbrl/Results/Door_Panda/", help='path for save')
+    parser.add_argument('--path', default="/media/phb/Storage/env_mbrl/Results/humanoid_sac/", help='path for save')
 
     args = parser.parse_known_args()
 

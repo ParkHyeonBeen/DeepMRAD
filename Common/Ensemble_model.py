@@ -66,7 +66,7 @@ class Ensemble(nn.Module):
         for idx, model in enumerate(self.model_batch):
             error = model.eval_model(state, action, next_state)
             self._add(idx, (model, error))
-        esemble_list = self._select_bests()
+        self._select_bests()
         state_d = (next_state - state)/self.base_model.frameskip
 
         state_d = torch.tensor(state_d, dtype=torch.float).cuda()
@@ -107,8 +107,8 @@ class Ensemble(nn.Module):
         load_model = self.model_batch[:ensemble_size]
         for i, model in enumerate(load_model):
             model.load_state_dict(load_ensemble['ensemble' + str(i+1)])
-            self.loaded_model.append(model)
-        return self.loaded_model
+            self.ensemble_list.append(model)
+            # self.loaded_model.append(model)
 
     def _add(self, idx, data):
         self.buffer.append(data[0])
@@ -123,5 +123,3 @@ class Ensemble(nn.Module):
 
         for i in range(self.ensemble_size):
             self.ensemble_list.append(score_mean_list[i][0])
-
-        return self.ensemble_list

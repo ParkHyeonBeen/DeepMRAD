@@ -142,7 +142,8 @@ class DynamicsNetwork(nn.Module):
 class InverseDynamicsNetwork(nn.Module):
     def __init__(self, state_dim, action_dim,
                  frameskip, algorithm,
-                 args, buffer=None, net_type=None, hidden_dim=(256, 256)):
+                 args, buffer=None, net_type=None, hidden_dim=(512, 512),
+                 max_sigma=1e-2, min_sigma=1e-6, announce=True):
         super(InverseDynamicsNetwork, self).__init__()
 
         if net_type is None:
@@ -161,6 +162,8 @@ class InverseDynamicsNetwork(nn.Module):
         self.buffer4model = buffer
         self.batch_size = args.batch_size
 
+        self.train_cnt = 0
+
         if self.net_type == "DNN":
 
             # self.inv_dnmsNN_state_d = nn.ModuleList([nn.Linear(self.state_dim, int(hidden_dim[0]/2)), nn.ReLU()]).cuda()
@@ -177,43 +180,47 @@ class InverseDynamicsNetwork(nn.Module):
             self.inv_model_lr = args.inv_model_lr_dnn
 
         if self.net_type == "BNN":
-            # self.inv_dnmsNN_state_d = nn.ModuleList([
-            #     bnn.BayesLinear(prior_mu=0, prior_sigma=0.01,
-            #                     in_features=self.state_dim, out_features=int(hidden_dim[0]/2)), nn.ReLU()]).cuda()
-            # self.inv_dnmsNN_state = nn.ModuleList([
-            #     bnn.BayesLinear(prior_mu=0, prior_sigma=0.01,
-            #                     in_features=self.state_dim, out_features=int(hidden_dim[0]/2)), nn.ReLU()]).cuda()
-            # self.inv_dnmsNN = nn.ModuleList([
-            #     bnn.BayesLinear(prior_mu=0, prior_sigma=0.01, in_features=hidden_dim[0], out_features=hidden_dim[1]),
-            #     nn.ReLU()])
-            # self.inv_dnmsNN = self.inv_dnmsNN.append(
-            #     bnn.BayesLinear(prior_mu=0, prior_sigma=0.01, in_features=hidden_dim[1], out_features=self.action_dim)
-            # ).cuda()
+
+            self.is_freeze = False
 
             self.inv_dnmsNN = nn.ModuleList([
-                bnn.BayesLinear(prior_mu=0, prior_sigma=0.01,
+                bnn.BayesLinear(prior_mu=0, prior_sigma=0.1,
                                 in_features=self.state_dim*2, out_features=hidden_dim[0]), nn.ReLU()])
             self.inv_dnmsNN = self.inv_dnmsNN.append(
-                bnn.BayesLinear(prior_mu=0, prior_sigma=0.01, in_features=hidden_dim[0], out_features=hidden_dim[1]))
+                bnn.BayesLinear(prior_mu=0, prior_sigma=0.1, in_features=hidden_dim[0], out_features=hidden_dim[1]))
             self.inv_dnmsNN = self.inv_dnmsNN.append(nn.ReLU())
             self.inv_dnmsNN = self.inv_dnmsNN.append(
-                bnn.BayesLinear(prior_mu=0, prior_sigma=0.01, in_features=hidden_dim[1], out_features=self.action_dim)
+                bnn.BayesLinear(prior_mu=0, prior_sigma=0.1, in_features=hidden_dim[1], out_features=self.action_dim)
             ).cuda()
 
             self.inv_model_lr = args.inv_model_lr_bnn
 
-        # if self.net_type == "RNN":
-        #     self.inv_dnmsNN_state_d = nn.ModuleList(
-        #         [nn.RNN(self.state_dim, int(hidden_dim[0] / 2)), nn.ReLU()]).cuda()
-        #     self.inv_dnmsNN_state = nn.ModuleList(
-        #         [nn.Linear(self.state_dim, int(hidden_dim[0] / 2)), nn.ReLU()]).cuda()
-        #     self.inv_dnmsNN = nn.ModuleList([nn.Linear(hidden_dim[0], hidden_dim[1]), nn.ReLU()])
-        #     self.inv_dnmsNN = self.inv_dnmsNN.append(nn.Linear(hidden_dim[1], action_dim)).cuda()
+        if self.net_type == "prob":
 
-        self.inv_dnms_optimizer = optim.Adam(self.inv_dnmsNN.parameters(), lr=self.inv_model_lr)
+            self.mu = torch.zeros(action_dim)
+            self.sigma = torch.zeros(action_dim)
+
+            self.fc = nn.Linear(self.state_dim*2, hidden_dim[0]).cuda()
+            self.fc2 = nn.Linear(hidden_dim[0], hidden_dim[0]).cuda()
+            self.ln = nn.LayerNorm(hidden_dim[0]).cuda()
+            self.do1 = nn.Dropout(0.25)
+            self.do2 = nn.Dropout(0.5)
+            self.fc_mu = nn.Linear(hidden_dim[0], action_dim).cuda()
+            self.fc_sigma = nn.Linear(hidden_dim[0], action_dim).cuda()
+
+            self.max_sigma = max_sigma
+            self.min_sigma = min_sigma
+            assert (self.max_sigma >= self.min_sigma)
+            if announce:
+                print("Probabilistic transition model chosen.")
+
+            self.inv_model_lr = args.inv_model_lr_dnn
+
+        self.inv_dnms_optimizer = optim.Adam(self.parameters(), lr=self.inv_model_lr)
         # self.scheduler = lr_scheduler.ExponentialLR(self.inv_dnms_optimizer, gamma=0.99)
 
         self.mse_loss = nn.MSELoss()
+        self.l1_loss = nn.L1Loss()
         self.kl_loss = bnn.BKLLoss(reduction='mean', last_layer_only=False)
         self.kl_weight = args.inv_model_kl_weight
 
@@ -221,6 +228,17 @@ class InverseDynamicsNetwork(nn.Module):
 
     def forward(self, state, next_state, train=False):
 
+        # BNN freezing part
+        if self.net_type == 'BNN':
+            if train is False and self.is_freeze is False:
+                bnn.utils.eps_zero(self.inv_dnmsNN)
+                self.is_freeze = True
+
+            if train is True and self.is_freeze is True:
+                bnn.utils.unfreeze(self.inv_dnmsNN)
+                self.is_freeze = False
+
+        # Tensorlizing
         if type(state) is not torch.Tensor:
             state = torch.tensor(state, dtype=torch.float).cuda()
         if type(next_state) is not torch.Tensor:
@@ -240,13 +258,34 @@ class InverseDynamicsNetwork(nn.Module):
         else:
             z = torch.cat([state_d, next_state])
 
-        for i in range(len(self.inv_dnmsNN)):
-            z = self.inv_dnmsNN[i](z)
+        if self.net_type == "prob":
+
+            z = self.fc(z)
+            z = self.fc2(z)
+            z = torch.relu(z)
+            self.mu = self.fc_mu(z)
+            if train is True:
+                sigma = torch.sigmoid(self.fc_sigma(z))  # range (0, 1.)
+                # scaled range (min_sigma, max_sigma)
+                self.sigma = self.min_sigma + (self.max_sigma - self.min_sigma) * sigma
+                z = self.sample_prediction(self.mu, self.sigma)
+            else:
+                z = self.mu
+        else:
+            for i in range(len(self.inv_dnmsNN)):
+                z = self.inv_dnmsNN[i](z)
 
         z = torch.tanh(z)
         return z
 
+    def sample_prediction(self, mu, sigma):
+        eps = torch.randn_like(sigma)
+        return mu + sigma * eps
+
     def train_all(self, training_num):
+
+        self.train_cnt += 1
+
         cost = 0.0
         mse = 0.0
         kl = 0.0
@@ -267,9 +306,28 @@ class InverseDynamicsNetwork(nn.Module):
             # s_d = (ns - s)/self.frameskip
 
             z = self.forward(s, ns, train=True)
-            mse = self.mse_loss(z, a)
-            kl = self.kl_loss(self.inv_dnmsNN)
-            cost = mse + self.kl_weight * kl# + torch.mean(torch.abs(z - a))
+
+            if self.net_type == "prob":
+
+                mse = self.mse_loss(z, a)
+
+                error_mean = torch.reshape(torch.tanh(self.mu) - a, (-1, 1, self.action_dim))
+                error_mean_trans = torch.transpose(error_mean, 1, 2)
+
+                cost = torch.mean(
+                    torch.reshape(torch.matmul(torch.matmul(error_mean, torch.diag_embed(1/self.sigma)), error_mean_trans), (-1,))\
+                    + torch.reshape(torch.log(torch.prod(self.sigma, dim=1)+1), (-1,))
+                ) + self.l1_loss(z, a)
+
+                kl = torch.Tensor(0)
+
+            else:
+                mse = self.mse_loss(z, a)
+                kl = self.kl_loss(self.inv_dnmsNN)
+                if self.train_cnt < 10000:
+                    cost = mse + self.l1_loss(z, a)
+                else:
+                    cost = mse + self.kl_weight * kl + self.l1_loss(z, a)
 
             self.inv_dnms_optimizer.zero_grad()
             cost.backward()
@@ -280,7 +338,6 @@ class InverseDynamicsNetwork(nn.Module):
         mse = mse.cpu().detach().numpy()
         kl = kl.cpu().detach().numpy()
         return cost, mse, kl
-
 
     def eval_model(self, state, action, next_state):
 

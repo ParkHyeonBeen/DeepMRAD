@@ -413,11 +413,12 @@ class Model_trainer():
 
                 eval_reward += reward
                 observation = next_observation
-
-                if self.local_step == self.env.spec.max_episode_steps:
+                if self.local_step == self.env.spec.max_episode_steps and eval_reward > 2*1183.44:   # 1183.44 halfcheetah 647.3822 ant
                     alive_cnt += 1
                     alive = True
 
+            if eval_reward < 0:
+                eval_reward = 0
             print("Eval of {}th episode  | Episode Reward {:.2f}, alive : {}".format(episode, eval_reward, alive))
             reward_list.append(eval_reward)
 

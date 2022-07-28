@@ -40,6 +40,11 @@ class Basic_trainer():
         self.eval_num = 0
         self.test_num = 0
 
+        if args.domain_type == 'suite':
+            self.T_terminal = env.horizon
+        else:
+            self.T_terminal = self.env.spec.max_episode_steps
+
         if self.args_tester is None:
             self.render = self.args.render
             self.path = self.args.path
@@ -130,7 +135,7 @@ class Basic_trainer():
                 eval_reward += reward
                 observation = next_observation
 
-                if self.local_step == self.env.spec.max_episode_steps:
+                if self.local_step == self.T_terminal:
                     alive_cnt += 1
 
             reward_list.append(eval_reward)
@@ -144,10 +149,12 @@ class Basic_trainer():
 
         if self.total_step == self.args.buffer_size:
             self.algorithm.buffer.save_buffer(self.path, 'by_full')
-            self.buffer4model.save_buffer(self.path, 'by_full', noise=True)
+            if self.args.use_random_buffer is True:
+                self.buffer4model.save_buffer(self.path, 'by_full', noise=True)
         elif self.total_step > self.args.buffer_size:
             self.algorithm.buffer.save_buffer(self.path, 'after_full')
-            self.buffer4model.save_buffer(self.path, 'after_full', noise=True)
+            if self.args.use_random_buffer is True:
+                self.buffer4model.save_buffer(self.path, 'after_full', noise=True)
 
         print("Eval  | Average Reward {:.2f}, Max reward: {:.2f}, Min reward: {:.2f}, Stddev reward: {:.2f}, alive rate : {:.2f}".format(sum(reward_list)/len(reward_list), max(reward_list), min(reward_list), np.std(reward_list), 100*alive_rate))
         self.test_env.close()
@@ -295,9 +302,12 @@ class Basic_trainer():
                 eval_reward += reward
                 observation = next_observation
 
-                if self.local_step == self.env.spec.max_episode_steps:
+                if self.local_step == self.T_terminal and eval_reward > 2*647.3822:   # 1183.44 halfcheetah 647.3822 ant
                     alive_cnt += 1
                     alive = True
+
+            if eval_reward < 0:
+                eval_reward = 0
 
             print("Eval of {}th episode  | Episode Reward {:.2f}, alive : {}".format(episode, eval_reward, alive))
             reward_list.append(eval_reward)

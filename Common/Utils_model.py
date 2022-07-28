@@ -118,6 +118,7 @@ def save_models(args, loss, eval_loss, path, models):
 
     else:
         for i, model in enumerate(models):
+
             if loss[i] > eval_loss[i]:
                 save_model(model, name_list[i] + "_better", path)
                 return [i, eval_loss[i]]
@@ -155,8 +156,13 @@ def load_models(args_tester, model, ensemble_mode=False):
         if args_tester.develop_mode == "MRAP":
             model.load_state_dict(torch.load(path_model))
         if args_tester.develop_mode == "DeepDOB":
-            model.load_state_dict(torch.load(path_invmodel))
+            model_tmp = torch.load(path_invmodel)
 
+            for key in model_tmp.copy().keys():
+                if 'eps' in key:
+                    del(model_tmp[key])
+
+            model.load_state_dict(model_tmp)
 
 def validate_measure(error_list):
     error_max = np.max(error_list, axis=0)

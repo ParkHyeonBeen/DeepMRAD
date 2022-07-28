@@ -1,8 +1,0 @@
-Training of gym_Humanoid-v3
-Algorithm: SAC_v2
-State dim: 376
-Action dim: 17
-Action range: -0.40 ~ 0.40
-step size: 0.015 (frame skip: 5)
-save path :  X:/env_mbrl/Results/Result7/
-model lr : 0.001, model klweight : 0.05, inv model lr : 0.0001, inv model klweight : 0.05

@@ -14,7 +14,7 @@ def hyperparameters():
     parser = argparse.ArgumentParser(description='Soft Actor Critic (SAC) v2 example')
     # save path
     parser.add_argument('--path', default="/media/phb/Storage/env_mbrl/Results/", help='path for save')
-    parser.add_argument('--result-index', default="hopper_dnn_esb/", help='result to check')
+    parser.add_argument('--result-index', default="ant_bnn_esb/", help='result to check')
 
     # estimate a model dynamics
     parser.add_argument('--modelbased-mode', default=True, type=bool, help="you should choose whether basic or model_base")
@@ -22,23 +22,23 @@ def hyperparameters():
     parser.add_argument('--ensemble-mode', default="True", type=str2bool, help="you should choose whether using an ensemble ")
     parser.add_argument('--ensemble-size', default=3, type=int, help="ensemble size")
     parser.add_argument('--model-batch-size', default=5, type=int, help="model batch size to use for ensemble")
-    parser.add_argument('--net-type', default="DNN", help='all, DNN, BNN')
+    parser.add_argument('--net-type', default="BNN", help='all, DNN, BNN, prob')
     parser.add_argument('--model-lr-dnn', default=0.001, type=float)
     parser.add_argument('--model-lr-bnn', default=0.001, type=float)
     parser.add_argument('--model-kl-weight', default=0.05, type=float)
     parser.add_argument('--inv-model-lr-dnn', default=0.001, type=float)
     parser.add_argument('--inv-model-lr-bnn', default=0.001, type=float)
-    parser.add_argument('--inv-model-kl-weight', default=0.002, type=float)
+    parser.add_argument('--inv-model-kl-weight', default=1e-6, type=float)
     parser.add_argument('--use-random-buffer', default=True, type=bool, help="add random action to training data")
 
     parser.add_argument('--render', default=False, type=bool)
 
-    parser.add_argument('--train-step', default=1000000, type=int, help='Maximum training step')
+    parser.add_argument('--train-step', default=100000000, type=int, help='Maximum training step')
     parser.add_argument('--batch-size', default=256, type=int, help='Mini-batch size')
     parser.add_argument('--buffer-size', default=1000000, type=int, help='Buffer maximum size')
-    parser.add_argument('--training-step', default=10, type=int)
-    parser.add_argument('--eval-step', default=1000, type=int, help='Frequency in performance evaluation')
-    parser.add_argument('--eval-episode', default=10, type=int, help='Number of episodes to perform evaluation')
+    parser.add_argument('--training-step', default=1, type=int)
+    parser.add_argument('--eval-step', default=10000, type=int, help='Frequency in performance evaluation')
+    parser.add_argument('--eval-episode', default=5, type=int, help='Number of episodes to perform evaluation')
     parser.add_argument('--prev-result', default='False', type=str2bool, help='if previous result, True')
     parser.add_argument('--prev-result-fname', default='0407_HalfCheetah-v3_esb', help='choose the result to view')
     parser.add_argument('--policynet-name', default='policy_best', help='best, better, current, total')
@@ -107,11 +107,11 @@ def main(args):
         #     algorithm.buffer.load_buffer(path, 'after_full')
         #     buffer4model.load_buffer(path, 'after_full', noise=True)
 
-        _, mse_list, kl_list = train_alls(args.training_step, models)
+        cost_list, mse_list, kl_list = train_alls(args.training_step, models)
         saveData = np.hstack((mse_list, kl_list))
         eval_data.put_data(saveData)
 
-        print("Train | Episode: ", i, ", RMSE: ", np.sqrt(mse_list), ", KL loss: ", kl_list)
+        print("Train | Episode: ", i, ", RMSE: ", np.sqrt(mse_list), ", cost: ", cost_list)
 
         if i%args.eval_step == 0 and i != 0:
 

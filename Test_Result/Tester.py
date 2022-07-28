@@ -11,10 +11,10 @@ def hyperparameters(result_fname="0503_Hopper",
                     num_test=5,
                     noise_scale=0.0,
                     disturbance_scale=0.0,
-                    disturbance_freq=4,
+                    disturbance_freq=16,
                     add_to='action',
                     policy_name="policy_best",
-                    model_name="modelBNN_better"
+                    model_name="modelDNN_better"
                     ):
 
     parser = argparse.ArgumentParser(description='Tester of algorithms')
@@ -30,8 +30,8 @@ def hyperparameters(result_fname="0503_Hopper",
 
     # result to watch
     parser.add_argument('--path', default="/media/phb/Storage/env_mbrl/Results/", help='path for save')
-    parser.add_argument('--result-index', default="Result4/", help='result to check')
-    parser.add_argument('--prev-result', default='True', type=str2bool, help='if previous result, True')
+    parser.add_argument('--result-index', default=result_fname + "/", help='result to check')
+    parser.add_argument('--prev-result', default='False', type=str2bool, help='if previous result, True')
     parser.add_argument('--prev-result-fname', default=result_fname, help='choose the result to view')
     parser.add_argument('--modelnet-name', default=model_name, help='modelDNN_better, modelBNN_better')
     parser.add_argument('--policynet-name', default=policy_name, help='best, better, current, total')
@@ -72,6 +72,8 @@ def main(args_tester):
     path_policy, env_name, algorithm_name, state_dim, action_dim, max_action, min_action, frameskip, modelbased_mode, ensemble_mode\
         = load_config(args_tester)
     print(path_policy)
+    print("Esb_mode:", ensemble_mode)
+    print("result_name:", args_tester.result_index)
 
     args, algorithm = get_algorithm_info(algorithm_name, state_dim, action_dim, device)
 

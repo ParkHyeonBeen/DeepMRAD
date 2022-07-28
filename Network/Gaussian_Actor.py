@@ -128,7 +128,6 @@ class Squashed_Gaussian_Actor(nn.Module):
             tanh_mean = torch.tanh(mean)
             log_prob = dist.log_prob(mean)
 
-
             log_pi = (log_prob - torch.log(1 - tanh_mean.pow(2) + 1e-6)).sum(dim=-1, keepdim=True)
 
             return tanh_mean, log_pi
